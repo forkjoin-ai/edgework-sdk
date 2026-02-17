@@ -1,0 +1,138 @@
+{
+  "name": "@affectively/edgework-sdk",
+  "version": "0.1.2",
+  "description": "Client-side AI inference SDK with D1/Dash storage, WebGPU inference, and on-device RLHF",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "import": "./dist/storage/index.mjs",
+      "require": "./dist/storage/index.js"
+    },
+    "./inference": {
+      "types": "./dist/inference/index.d.ts",
+      "import": "./dist/inference/index.mjs",
+      "require": "./dist/inference/index.js"
+    },
+    "./sync": {
+      "types": "./dist/sync/index.d.ts",
+      "import": "./dist/sync/index.mjs",
+      "require": "./dist/sync/index.js"
+    },
+    "./rlhf": {
+      "types": "./dist/rlhf/index.d.ts",
+      "import": "./dist/rlhf/index.mjs",
+      "require": "./dist/rlhf/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.mjs",
+      "require": "./dist/react/index.js"
+    },
+    "./data": {
+      "types": "./dist/data/index.d.ts",
+      "import": "./dist/data/index.mjs",
+      "require": "./dist/data/index.js"
+    },
+    "./compute": {
+      "types": "./dist/compute/index.d.ts",
+      "import": "./dist/compute/index.mjs",
+      "require": "./dist/compute/index.js"
+    },
+    "./compute/distributed": {
+      "types": "./dist/compute/distributed/index.d.ts",
+      "import": "./dist/compute/distributed/index.mjs",
+      "require": "./dist/compute/distributed/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.mjs",
+      "require": "./dist/auth/index.js"
+    },
+    "./gateway": {
+      "types": "./dist/compute/gateway/index.d.ts",
+      "import": "./dist/compute/gateway/index.js",
+      "require": "./dist/compute/gateway/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent/index.d.ts",
+      "import": "./dist/agent/index.mjs",
+      "require": "./dist/agent/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "cli",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "gen:client": "bun scripts/generate-clients.ts",
+    "agent:setup": "bun cli/setup.ts",
+    "agent:start": "bun cli/agent-start.ts",
+    "agent:stop": "bun cli/stop.ts",
+    "agent:status": "bun cli/status.ts",
+    "agent:earnings": "bun cli/earnings.ts",
+    "agent:tokens": "bun cli/tokens.ts",
+    "gateway:start": "bun cli/gateway-start.ts",
+    "proxy:start": "bun cli/proxy-start.ts",
+    "proxy:debug": "bun cli/proxy-start.ts --debug",
+    "proxy:login": "bun cli/proxy-login.ts",
+    "query": "bun cli/query.ts"
+  },
+  "keywords": [
+    "ai",
+    "inference",
+    "webgpu",
+    "edge",
+    "offline",
+    "rlhf",
+    "client-side",
+    "llm"
+  ],
+  "author": "AFFECTIVELY",
+  "license": "UNLICENSED",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/affectively-ai/edgework-sdk"
+  },
+  "dependencies": {
+    "ethers": "^6.13.5",
+    "zod": "^3.24.0",
+    "twokeys": "^1.0.0",
+    "commander": "^11.0.0",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1"
+  },
+  "devDependencies": {
+    "@hey-api/client-fetch": "^0.13.1",
+    "@hey-api/openapi-ts": "^0.90.10",
+    "@openapitools/openapi-generator-cli": "^2.28.0",
+    "@webgpu/types": "^0.1.69",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}

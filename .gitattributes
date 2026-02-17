@@ -1,0 +1,4 @@
+# Mark generated files
+src/gateway/** linguist-generated=true
+generated/** linguist-generated=true
+scripts/generate-clients.ts linguist-generated=false

@@ -1,0 +1,1029 @@
+openapi: 3.0.0
+info:
+  contact:
+    email: support@emotions.app
+    name: Affectively API Support
+    url: https://emotions.app/api-docs
+  description: |
+    Unified AI Gateway API for accessing multiple LLM providers through a single interface.
+
+    ## Overview
+    The AI Gateway provides a unified interface to Affectively's self-hosted distributed inference running on Cloudflare Workers and Google Cloud Run.
+    All models are open-source and self-hosted - no paid third-party AI providers are used.
+
+    ## Available Models
+    Self-hosted models on Cloudflare Workers and Cloud Run:
+    - **Text Generation**: mistral-7b, llama-70b, llama-13b, glm-4.7, qwen-edit, tinyllama-1.1b, deepseek-1.5b, deepseek-3b
+    - **Vision/Image Generation**: flux-4b
+    - **Audio/TTS**: vibevoice-9b
+    - **Translation**: translategemma-4b
+
+    ## Authentication
+    All requests require an API key via the `Authorization` header:
+    ```
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    For Cloudflare AI Gateway, use the `cf-aig-authorization` header:
+    ```
+    cf-aig-authorization: Bearer YOUR_CLOUDFLARE_TOKEN
+    ```
+
+    ## Token Counting
+    Tokens are the fundamental unit of rate limiting in the AI Gateway.
+    All models are self-hosted with no per-token costs.
+
+    ### What are Tokens?
+    - **Input tokens**: Text you send to the AI model (typically ~4 characters per token)
+    - **Output tokens**: Text the AI generates (variable, typically longer than input)
+
+    ### Token Examples
+    - "Hello" ≈ 1 token
+    - A paragraph ≈ 50-100 tokens
+    - A page ≈ 300-500 tokens
+    - An image (via vision models) ≈ 85-130 tokens
+
+    ### Optimization Tips
+    - Use shorter prompts and be specific about requirements
+    - For ensemble models, input tokens are counted once but output scales with model count
+    - Streaming responses count the same as non-streaming
+  license:
+    name: MIT
+  title: Affectively AI Gateway API
+  version: 1.0.0
+servers:
+- description: Affectively Edge (Production)
+  url: https://edge.affectively.ai
+- description: Affectively Edge (Development)
+  url: https://affectively-edge-dev.taylorbuley.workers.dev
+security:
+- bearerAuth: []
+- cloudflareAuth: []
+tags:
+- description: Generate text responses using language models
+  name: Chat Completions
+- description: Generate vector embeddings for semantic search
+  name: Embeddings
+- description: List available models and their capabilities
+  name: Models
+- description: Gateway health and status monitoring
+  name: Health
+paths:
+  /chat/completions:
+    post:
+      description: |
+        Generate text responses using a specified language model.
+
+        ## Advanced Modalities
+
+        ### Ensemble Mode
+        Sends the same prompt to multiple models and combines responses intelligently:
+        - **Ensemble Cost**: Input tokens charged once; output tokens for each model
+        - **Use Cases**: High-stakes decisions requiring diverse perspectives
+        - **Response Merging**: Results are combined based on agreement and confidence
+
+        ### Meta-Metacognition
+        Enables multi-layer reasoning where models analyze their own reasoning:
+        - **Layer 1**: Initial response generation
+        - **Layer 2**: Self-reflection on reasoning process
+        - **Layer 3**: Meta-analysis of reflection quality
+        - **Cost Impact**: 3x token usage (one per layer)
+        - **Benefit**: More nuanced, self-aware responses
+
+        ### Monte Carlo Analysis
+        Runs multiple probabilistic iterations to handle uncertainty:
+        - **Iterations**: Configurable (typically 5-20 runs)
+        - **Token Cost**: `num_iterations × base_tokens`
+        - **Use Cases**: Probability estimation, scenario analysis, risk assessment
+        - **Convergence**: Results stabilize with more iterations
+        - **Standard Deviation**: Measure of response variability
+      operationId: createChatCompletion
+      parameters:
+      - description: Optional request ID for tracking
+        explode: false
+        in: header
+        name: X-Request-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      - description: Optional correlation ID for distributed tracing
+        explode: false
+        in: header
+        name: X-Correlation-ID
+        required: false
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            examples:
+              simple:
+                summary: Simple chat completion
+                value:
+                  model: mistral-7b
+                  messages:
+                  - role: user
+                    content: What are the key emotions in this situation?
+                  temperature: 0.7
+                  max_tokens: 500
+              ensemble:
+                summary: Ensemble mode (multiple models)
+                value:
+                  model: ensemble
+                  models:
+                  - mistral-7b
+                  - llama-13b
+                  - deepseek-3b
+                  messages:
+                  - role: user
+                    content: Analyze this from different perspectives
+                  temperature: 0.7
+                  ensemble_strategy: weighted_average
+              meta_metacognition:
+                summary: Meta-metacognition with reflection
+                value:
+                  model: llama-70b
+                  messages:
+                  - role: user
+                    content: Solve this problem
+                  temperature: 0.7
+                  metadata:
+                    enable_meta_metacognition: true
+                    reflection_depth: 3
+              monte_carlo:
+                summary: Monte Carlo probabilistic analysis
+                value:
+                  model: mistral-7b
+                  messages:
+                  - role: user
+                    content: What's the probability of this outcome?
+                  temperature: 0.9
+                  metadata:
+                    enable_monte_carlo: true
+                    iterations: 10
+                    analysis_type: probability_estimation
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              examples:
+                simple:
+                  summary: Standard response
+                  value:
+                    id: chatcmpl-8nqz7
+                    object: chat.completion
+                    created: 1700000000
+                    model: mistral-7b
+                    usage:
+                      prompt_tokens: 25
+                      completion_tokens: 150
+                      total_tokens: 175
+                    choices:
+                    - finish_reason: stop
+                      index: 0
+                      message:
+                        role: assistant
+                        content: The key emotions appear to be...
+                ensemble:
+                  summary: Ensemble response with multiple models
+                  value:
+                    id: ens-xyz123
+                    object: chat.completion.ensemble
+                    created: 1700000000
+                    models:
+                    - mistral-7b
+                    - llama-13b
+                    - deepseek-3b
+                    usage:
+                      prompt_tokens: 25
+                      completion_tokens_per_model: 150
+                      total_tokens: 475
+                    choices:
+                    - finish_reason: stop
+                      index: 0
+                      ensemble_results:
+                        consensus_confidence: 0.85
+                        perspectives:
+                        - model: mistral-7b
+                          perspective: '...'
+                        - model: llama-13b
+                          perspective: '...'
+                        - model: deepseek-3b
+                          perspective: '...'
+                        synthesis: Combining these perspectives...
+                monte_carlo:
+                  summary: Monte Carlo analysis results
+                  value:
+                    id: mc-abc456
+                    object: chat.completion.monte_carlo
+                    created: 1700000000
+                    model: mistral-7b
+                    metadata:
+                      iterations: 10
+                      analysis_type: probability_estimation
+                    usage:
+                      prompt_tokens: 25
+                      completion_tokens: 150
+                      iterations: 10
+                      total_tokens: 1575
+                    choices:
+                    - finish_reason: stop
+                      index: 0
+                      monte_carlo_results:
+                        point_estimate: 0.68
+                        confidence_interval:
+                          lower_bound: 0.62
+                          upper_bound: 0.74
+                        standard_deviation: 0.04
+                        iterations_converged: 10
+                        result_distribution: Approximately normal
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+          description: Successful completion
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid request parameters
+        "429":
+          content:
+            application/json:
+              example:
+                error:
+                  type: rate_limit_error
+                  message: Rate limit exceeded for model mistral-7b
+                rate_limit:
+                  limit_per_minute: 1000
+                  remaining: 0
+                  reset_in_seconds: 60
+              schema:
+                $ref: '#/components/schemas/RateLimitError'
+          description: Rate limit exceeded
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Server error
+      summary: Create chat completion
+      tags:
+      - Chat Completions
+  /embeddings:
+    post:
+      description: |
+        Generate vector embeddings for text, enabling semantic search and similarity analysis.
+
+        ## Use Cases
+        - Semantic search across emotions and reflections
+        - Clustering similar emotional states
+        - Finding related tools or coping strategies
+        - Recommendation systems
+
+        ## Token Counting
+        Embeddings count tokens the same as chat completions.
+        All models are self-hosted with no per-token costs.
+      operationId: createEmbeddings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbeddingsRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingsResponse'
+          description: Successful embeddings generation
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid request
+      summary: Create embeddings
+      tags:
+      - Embeddings
+  /models:
+    get:
+      description: |
+        Retrieve information about all available models and their capabilities.
+
+        Returns model details including:
+        - Model ID and name
+        - Provider (Cloudflare Workers or Cloud Run)
+        - Capabilities (chat, embeddings, vision, audio, translation)
+        - Token limits (input/output context windows)
+        - Rate limits
+        - Latest update
+
+        ## Text Models
+        - mistral-7b, llama-70b, llama-13b, glm-4.7, qwen-edit
+        - tinyllama-1.1b, deepseek-1.5b, deepseek-3b
+
+        ## Vision/Audio/Translation Models
+        - flux-4b (image generation)
+        - vibevoice-9b (TTS)
+        - translategemma-4b (translation)
+      operationId: listModels
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+          description: List of available models
+      summary: List available models
+      tags:
+      - Models
+  /health:
+    get:
+      description: |
+        Check the health status of the AI Gateway and all connected providers.
+
+        Returns status information including:
+        - Gateway status (operational/degraded/offline)
+        - Provider status (each provider's current status)
+        - Rate limit status (current usage vs limits)
+        - Token counter status
+        - Cache status
+      operationId: getHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: Gateway is operational
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: Gateway is unavailable
+      summary: Health check
+      tags:
+      - Health
+components:
+  schemas:
+    ChatCompletionRequest:
+      example:
+        top_p: 0.14658129805029452
+        models:
+        - mistral-7b
+        - llama-13b
+        - deepseek-3b
+        ensemble_strategy: synthesis
+        metadata:
+          enable_monte_carlo: true
+          enable_meta_metacognition: true
+          reflection_depth: 3
+          analysis_type: probability_estimation
+          cache_key: cache_key
+          iterations: 23
+        max_tokens: 4822
+        top_k: 1
+        temperature: 0.1601656380922023
+        messages:
+        - role: system
+          content: ""
+        - role: system
+          content: ""
+        model: mistral-7b
+      properties:
+        model:
+          description: |
+            Model identifier. Can be:
+            - Text models: "mistral-7b", "llama-70b", "llama-13b", "glm-4.7", "qwen-edit", "tinyllama-1.1b", "deepseek-1.5b", "deepseek-3b"
+            - Vision: "flux-4b"
+            - Audio: "vibevoice-9b"
+            - Translation: "translategemma-4b"
+            - Special modes: "ensemble" (multiple models), "auto" (best available)
+          example: mistral-7b
+          type: string
+        messages:
+          description: |
+            Array of message objects forming the conversation history.
+            Each message has a role (system, user, assistant) and content.
+          items:
+            $ref: '#/components/schemas/Message'
+          minItems: 1
+          type: array
+        temperature:
+          default: 1
+          description: |
+            Controls randomness. Lower = more deterministic, Higher = more creative
+            - 0: Deterministic (best for analysis)
+            - 0.7: Balanced (recommended for most tasks)
+            - 1.5+: Creative (for brainstorming)
+          maximum: 2
+          minimum: 0
+          type: number
+        max_tokens:
+          description: Maximum number of tokens to generate
+          maximum: 8000
+          minimum: 1
+          type: integer
+        top_p:
+          default: 1
+          description: |
+            Nucleus sampling. Controls diversity of top choices.
+            Only used when temperature > 0
+          maximum: 1
+          minimum: 0
+          type: number
+        top_k:
+          description: |
+            Only sample from the K most likely tokens.
+            For reducing output variability without lowering temperature.
+          minimum: 1
+          type: integer
+        models:
+          description: |
+            For ensemble mode: array of model IDs to use.
+            Each model receives the same input and outputs are combined.
+          example:
+          - mistral-7b
+          - llama-13b
+          - deepseek-3b
+          items:
+            type: string
+          type: array
+        ensemble_strategy:
+          default: synthesis
+          description: |
+            How to combine ensemble results:
+            - weighted_average: Combine based on confidence scores
+            - voting: Majority rule
+            - consensus: Only return if models agree above threshold
+            - synthesis: AI-generated synthesis of perspectives
+          enum:
+          - weighted_average
+          - voting
+          - consensus
+          - synthesis
+          type: string
+        metadata:
+          $ref: '#/components/schemas/ChatCompletionRequest_metadata'
+      required:
+      - messages
+      - model
+      type: object
+    Message:
+      example:
+        role: system
+        content: ""
+      properties:
+        role:
+          description: Role of the message sender
+          enum:
+          - system
+          - user
+          - assistant
+          type: string
+        content:
+          oneOf:
+          - description: Text content
+            type: string
+          - description: Multi-modal content (text + images)
+            items:
+              oneOf:
+              - properties:
+                  type:
+                    type: string
+                  text:
+                    type: string
+                type: object
+              - properties:
+                  type:
+                    type: string
+                  image_url:
+                    properties:
+                      url:
+                        type: string
+                      detail:
+                        enum:
+                        - low
+                        - high
+                        type: string
+                    type: object
+                type: object
+            type: array
+      required:
+      - content
+      - role
+      type: object
+    ChatCompletionResponse:
+      example:
+        created: 0
+        usage:
+          completion_tokens: 1
+          prompt_tokens: 6
+          total_tokens: 5
+        model: model
+        id: id
+        choices:
+        - finish_reason: stop
+          index: 5
+          monte_carlo_results:
+            point_estimate: 7.061401241503109
+            confidence_interval: '{}'
+            iterations_converged: 3
+            standard_deviation: 9.301444243932576
+          message:
+            role: system
+            content: ""
+          ensemble_results:
+            perspectives:
+            - '{}'
+            - '{}'
+            consensus_confidence: 2.3021358869347655
+        - finish_reason: stop
+          index: 5
+          monte_carlo_results:
+            point_estimate: 7.061401241503109
+            confidence_interval: '{}'
+            iterations_converged: 3
+            standard_deviation: 9.301444243932576
+          message:
+            role: system
+            content: ""
+          ensemble_results:
+            perspectives:
+            - '{}'
+            - '{}'
+            consensus_confidence: 2.3021358869347655
+        object: chat.completion
+      properties:
+        id:
+          description: Unique completion ID
+          type: string
+        object:
+          enum:
+          - chat.completion
+          - chat.completion.ensemble
+          - chat.completion.monte_carlo
+          type: string
+        created:
+          description: Unix timestamp of creation
+          type: integer
+        model:
+          description: Model used for completion
+          type: string
+        usage:
+          $ref: '#/components/schemas/Usage'
+        choices:
+          items:
+            $ref: '#/components/schemas/Choice'
+          type: array
+      type: object
+    Choice:
+      example:
+        finish_reason: stop
+        index: 5
+        monte_carlo_results:
+          point_estimate: 7.061401241503109
+          confidence_interval: '{}'
+          iterations_converged: 3
+          standard_deviation: 9.301444243932576
+        message:
+          role: system
+          content: ""
+        ensemble_results:
+          perspectives:
+          - '{}'
+          - '{}'
+          consensus_confidence: 2.3021358869347655
+      properties:
+        finish_reason:
+          enum:
+          - stop
+          - length
+          - error
+          type: string
+        index:
+          type: integer
+        message:
+          $ref: '#/components/schemas/Message'
+        ensemble_results:
+          $ref: '#/components/schemas/Choice_ensemble_results'
+        monte_carlo_results:
+          $ref: '#/components/schemas/Choice_monte_carlo_results'
+      type: object
+    Usage:
+      example:
+        completion_tokens: 1
+        prompt_tokens: 6
+        total_tokens: 5
+      properties:
+        prompt_tokens:
+          description: Number of tokens in the prompt
+          type: integer
+        completion_tokens:
+          description: Number of tokens in the completion
+          type: integer
+        total_tokens:
+          description: Total tokens used (prompt + completion)
+          type: integer
+      type: object
+    EmbeddingsRequest:
+      example:
+        input: ""
+        model: mistral-7b
+      properties:
+        input:
+          description: Text or array of texts to embed
+          oneOf:
+          - type: string
+          - items:
+              type: string
+            type: array
+        model:
+          description: Model to use for embeddings
+          example: mistral-7b
+          type: string
+      required:
+      - input
+      - model
+      type: object
+    EmbeddingsResponse:
+      example:
+        data:
+        - index: 6
+          embedding:
+          - 0.8008281904610115
+          - 0.8008281904610115
+          object: object
+        - index: 6
+          embedding:
+          - 0.8008281904610115
+          - 0.8008281904610115
+          object: object
+        usage:
+          completion_tokens: 1
+          prompt_tokens: 6
+          total_tokens: 5
+        model: model
+        object: object
+      properties:
+        object:
+          type: string
+        data:
+          items:
+            $ref: '#/components/schemas/EmbeddingsResponse_data'
+          type: array
+        model:
+          type: string
+        usage:
+          $ref: '#/components/schemas/Usage'
+      type: object
+    ModelsResponse:
+      example:
+        data:
+        - parent: parent
+          capabilities:
+          - chat
+          - chat
+          rate_limit:
+            requests_per_minute: 5
+            tokens_per_minute: 5
+          created: 0
+          permissions:
+          - '{}'
+          - '{}'
+          root: root
+          owned_by: owned_by
+          id: id
+          context_window:
+            output_tokens: 1
+            input_tokens: 6
+          object: object
+        - parent: parent
+          capabilities:
+          - chat
+          - chat
+          rate_limit:
+            requests_per_minute: 5
+            tokens_per_minute: 5
+          created: 0
+          permissions:
+          - '{}'
+          - '{}'
+          root: root
+          owned_by: owned_by
+          id: id
+          context_window:
+            output_tokens: 1
+            input_tokens: 6
+          object: object
+        object: object
+      properties:
+        object:
+          type: string
+        data:
+          items:
+            $ref: '#/components/schemas/ModelsResponse_data'
+          type: array
+      type: object
+    HealthResponse:
+      example:
+        cache:
+          hit_rate: 2.3021358869347655
+          items_cached: 7
+        rate_limits:
+          current_usage: 5.962133916683182
+          limit: 5.637376656633329
+          reset_at: 2000-01-23T04:56:07.000+00:00
+        gateway:
+          status: status
+          latency_ms: 0.8008281904610115
+        providers:
+          key:
+            available_models: 1
+            status: status
+            latency_ms: 6.027456183070403
+        status: operational
+        timestamp: 2000-01-23T04:56:07.000+00:00
+      properties:
+        status:
+          enum:
+          - operational
+          - degraded
+          - offline
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+        gateway:
+          $ref: '#/components/schemas/HealthResponse_gateway'
+        providers:
+          additionalProperties:
+            $ref: '#/components/schemas/HealthResponse_providers'
+          type: object
+        rate_limits:
+          $ref: '#/components/schemas/HealthResponse_rate_limits'
+        cache:
+          $ref: '#/components/schemas/HealthResponse_cache'
+      type: object
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorResponse_error'
+      type: object
+    RateLimitError:
+      properties:
+        error:
+          $ref: '#/components/schemas/RateLimitError_error'
+        rate_limit:
+          $ref: '#/components/schemas/RateLimitError_rate_limit'
+      type: object
+    ChatCompletionRequest_metadata:
+      description: Optional metadata for advanced modalities
+      example:
+        enable_monte_carlo: true
+        enable_meta_metacognition: true
+        reflection_depth: 3
+        analysis_type: probability_estimation
+        cache_key: cache_key
+        iterations: 23
+      properties:
+        enable_meta_metacognition:
+          description: Enable multi-layer reasoning analysis
+          type: boolean
+        reflection_depth:
+          description: Depth of self-reflection (1-5 layers)
+          maximum: 5
+          minimum: 1
+          type: integer
+        enable_monte_carlo:
+          description: Enable probabilistic Monte Carlo analysis
+          type: boolean
+        iterations:
+          description: Number of Monte Carlo iterations
+          maximum: 100
+          minimum: 1
+          type: integer
+        analysis_type:
+          description: Type of Monte Carlo analysis
+          enum:
+          - probability_estimation
+          - risk_analysis
+          - scenario_analysis
+          type: string
+        cache_key:
+          description: Optional cache key for repeated requests
+          type: string
+      type: object
+    Choice_ensemble_results:
+      description: Results when using ensemble mode
+      example:
+        perspectives:
+        - '{}'
+        - '{}'
+        consensus_confidence: 2.3021358869347655
+      properties:
+        consensus_confidence:
+          type: number
+        perspectives:
+          items:
+            type: object
+          type: array
+      type: object
+    Choice_monte_carlo_results:
+      description: Results when using Monte Carlo analysis
+      example:
+        point_estimate: 7.061401241503109
+        confidence_interval: '{}'
+        iterations_converged: 3
+        standard_deviation: 9.301444243932576
+      properties:
+        point_estimate:
+          type: number
+        confidence_interval:
+          type: object
+        standard_deviation:
+          type: number
+        iterations_converged:
+          type: integer
+      type: object
+    EmbeddingsResponse_data:
+      example:
+        index: 6
+        embedding:
+        - 0.8008281904610115
+        - 0.8008281904610115
+        object: object
+      properties:
+        object:
+          type: string
+        embedding:
+          items:
+            type: number
+          type: array
+        index:
+          type: integer
+      type: object
+    ModelsResponse_context_window:
+      example:
+        output_tokens: 1
+        input_tokens: 6
+      properties:
+        input_tokens:
+          type: integer
+        output_tokens:
+          type: integer
+      type: object
+    ModelsResponse_rate_limit:
+      example:
+        requests_per_minute: 5
+        tokens_per_minute: 5
+      properties:
+        requests_per_minute:
+          type: integer
+        tokens_per_minute:
+          type: integer
+      type: object
+    ModelsResponse_data:
+      example:
+        parent: parent
+        capabilities:
+        - chat
+        - chat
+        rate_limit:
+          requests_per_minute: 5
+          tokens_per_minute: 5
+        created: 0
+        permissions:
+        - '{}'
+        - '{}'
+        root: root
+        owned_by: owned_by
+        id: id
+        context_window:
+          output_tokens: 1
+          input_tokens: 6
+        object: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        created:
+          type: integer
+        owned_by:
+          type: string
+        permissions:
+          items:
+            type: object
+          type: array
+        root:
+          type: string
+        parent:
+          type: string
+        context_window:
+          $ref: '#/components/schemas/ModelsResponse_context_window'
+        capabilities:
+          items:
+            enum:
+            - chat
+            - embeddings
+            - vision
+            - function_calling
+            - reasoning
+            type: string
+          type: array
+        rate_limit:
+          $ref: '#/components/schemas/ModelsResponse_rate_limit'
+      type: object
+    HealthResponse_gateway:
+      example:
+        status: status
+        latency_ms: 0.8008281904610115
+      properties:
+        status:
+          type: string
+        latency_ms:
+          type: number
+      type: object
+    HealthResponse_providers:
+      example:
+        available_models: 1
+        status: status
+        latency_ms: 6.027456183070403
+      properties:
+        status:
+          type: string
+        latency_ms:
+          type: number
+        available_models:
+          type: integer
+      type: object
+    HealthResponse_rate_limits:
+      example:
+        current_usage: 5.962133916683182
+        limit: 5.637376656633329
+        reset_at: 2000-01-23T04:56:07.000+00:00
+      properties:
+        current_usage:
+          type: number
+        limit:
+          type: number
+        reset_at:
+          format: date-time
+          type: string
+      type: object
+    HealthResponse_cache:
+      example:
+        hit_rate: 2.3021358869347655
+        items_cached: 7
+      properties:
+        hit_rate:
+          type: number
+        items_cached:
+          type: integer
+      type: object
+    ErrorResponse_error:
+      properties:
+        message:
+          type: string
+        type:
+          type: string
+        param:
+          type: string
+        code:
+          type: string
+      type: object
+    RateLimitError_error:
+      properties:
+        type:
+          type: string
+        message:
+          type: string
+      type: object
+    RateLimitError_rate_limit:
+      properties:
+        limit_per_minute:
+          type: integer
+        remaining:
+          type: integer
+        reset_in_seconds:
+          type: integer
+      type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: API Key
+      description: API Key for Affectively AI Gateway
+      scheme: bearer
+      type: http
+    cloudflareAuth:
+      description: Cloudflare AI Gateway authorization token
+      in: header
+      name: cf-aig-authorization
+      type: apiKey
