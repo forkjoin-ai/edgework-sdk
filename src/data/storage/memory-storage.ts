@@ -115,10 +115,15 @@ export class MemoryStorage extends BaseStorage {
   // User adapters
   async getUserAdapter(
     modelId: string,
-    userId: string
+    userId: string,
+    adapterId?: string
   ): Promise<UserAdapter | null> {
     for (const adapter of this.userAdapters.values()) {
-      if (adapter.modelId === modelId && adapter.userId === userId) {
+      if (
+        adapter.modelId === modelId &&
+        adapter.userId === userId &&
+        (!adapterId || adapter.id === adapterId)
+      ) {
         return adapter;
       }
     }

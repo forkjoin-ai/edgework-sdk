@@ -15,7 +15,7 @@ import type {
   UserAdapter,
   TrainingLogEntry,
   StorageBackend,
-} from '../../schemas';
+} from '../../types';
 
 const DB_NAME = 'edgework-models';
 const DB_VERSION = 1;
@@ -270,11 +270,16 @@ export class OPFSStorage extends BaseStorage {
   // User adapters
   async getUserAdapter(
     modelId: string,
-    userId: string
+    userId: string,
+    adapterId?: string
   ): Promise<UserAdapter | null> {
     if (!this.metaDb) return null;
     for (const adapter of this.metaDb.adapters.values()) {
-      if (adapter.modelId === modelId && adapter.userId === userId) {
+      if (
+        adapter.modelId === modelId &&
+        adapter.userId === userId &&
+        (!adapterId || adapter.id === adapterId)
+      ) {
         return adapter;
       }
     }

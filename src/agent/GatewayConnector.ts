@@ -9,6 +9,10 @@ import type {
   WalletConfig,
 } from './types';
 import { WalletManager } from './WalletManager';
+import {
+  createEdgeworkAuthHeader,
+  resolveEdgeworkApiKey,
+} from '../edgework-api-key';
 
 export interface RegistrationMetadata {
   name: string;
@@ -43,6 +47,7 @@ export class GatewayConnector {
   private provider: string;
   private walletAddress: string;
   private registryAddress: string;
+  private apiKey: string | undefined;
   private chainId: number;
   private walletManager: WalletManager;
   private web3Provider: any = null;
@@ -53,6 +58,7 @@ export class GatewayConnector {
     this.provider = options.provider || 'https://sepolia.optimism.io';
     this.walletAddress = options.walletAddress;
     this.registryAddress = options.registryAddress || '0x' + '0'.repeat(40); // Placeholder
+    this.apiKey = resolveEdgeworkApiKey(options.apiKey);
     this.chainId = options.chainId || 11155420; // Optimism Sepolia
     this.walletManager = new WalletManager();
     this.logger = this.createLogger();
@@ -367,6 +373,7 @@ export class GatewayConnector {
           'Content-Type': 'application/json',
           'User-Agent': `Edgework-SDK/0.1.0`,
           Accept: 'application/json',
+          ...createEdgeworkAuthHeader(this.apiKey),
         },
         body: JSON.stringify({
           gateway: this.walletAddress,

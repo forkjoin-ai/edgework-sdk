@@ -17,6 +17,7 @@ import { GatewayConnector } from './GatewayConnector';
 import { ComputeNode } from './ComputeNode';
 import { WalletManager } from './WalletManager';
 import { TokenSpendingManager } from './TokenSpendingManager';
+import { resolveEdgeworkApiKey } from '../edgework-api-key';
 
 /**
  * Main agent orchestrator with token-based compute spending support
@@ -41,6 +42,7 @@ import { TokenSpendingManager } from './TokenSpendingManager';
 export class AgentManager {
   private config: AgentConfig;
   private configPath: string;
+  private apiKey: string | undefined;
   private gateway: GatewayConnector | null = null;
   private computeNode: ComputeNode | null = null;
   private walletManager: WalletManager;
@@ -54,6 +56,7 @@ export class AgentManager {
   constructor(options: AgentManagerOptions = {}) {
     this.configPath =
       options.configPath || `${this.getConfigDir()}/agent-config.json`;
+    this.apiKey = resolveEdgeworkApiKey(options.apiKey);
     this.walletManager = new WalletManager({
       configDir: path.dirname(this.configPath),
     });
@@ -123,6 +126,7 @@ export class AgentManager {
         walletAddress: this.config.gateway.walletAddress,
         provider: (this.config as any).rpcUrl,
         registryAddress: (this.config as any).registryAddress,
+        apiKey: this.apiKey,
       });
 
       // Initialize token spending manager if enabled
@@ -171,6 +175,7 @@ export class AgentManager {
       this.computeNode = new ComputeNode(
         {
           gatewayUrl: 'http://localhost:8080', // Will be updated
+          apiKey: this.apiKey,
           cpuAllocation: this.config.compute.cpuAllocation,
           memoryMB: this.config.compute.memoryMB,
           maxTaskDuration: this.config.compute.maxTaskDuration,

@@ -124,6 +124,7 @@ import { createStorage as createStorageInternal } from './data/storage/factory';
 import { createInferenceEngine as createInferenceEngineInternal } from './compute/inference/factory';
 import { createModelSync as createModelSyncInternal } from './data/sync/factory';
 import { RLHFTrainer as RLHFTrainerInternal } from './compute/rlhf/trainer';
+import { FederatedSync } from './compute/rlhf/federated-sync';
 import {
   getModelConfig as getModelConfigInternal,
   getSystemPrompt as getSystemPromptInternal,
@@ -140,6 +141,11 @@ import type {
   DownloadProgress,
   EngineInfo,
   RLHFFeedback,
+  Modality,
+  ModalityInferenceResult,
+  InferenceError,
+  ModalityTrainingSignal,
+  TrainingFlushResult,
 } from './types';
 import { EdgeworkOptionsSchema } from './schemas';
 
@@ -149,10 +155,19 @@ import { EdgeworkOptionsSchema } from './schemas';
  * Provides a unified interface for client-side AI inference.
  */
 export class Edgework {
+  private static readonly DEFAULT_TRAINING_BATCH_SIZE = 16;
+  private static readonly DEFAULT_TRAINING_IDLE_FLUSH_MS = 45_000;
+
   private storage: BaseStorage;
   private inference: BaseInference | null = null;
   private sync: ModelSyncType | null = null;
   private rlhfTrainer: RLHFTrainerInternal | null = null;
+  private modalityTrainers = new Map<Modality, RLHFTrainerInternal>();
+  private pendingSignals = new Map<Modality, ModalityTrainingSignal[]>();
+  private communityParticipation = false;
+  private idleFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private trainingBatchSize: number;
+  private trainingIdleFlushMs: number;
   private modelId: string;
   private systemPrompt: string;
   private options: EdgeworkOptions;
@@ -165,6 +180,11 @@ export class Edgework {
     this.storage = storage;
     this.modelId = modelId;
     this.options = options;
+    this.trainingBatchSize =
+      options.trainingBatchSize ?? Edgework.DEFAULT_TRAINING_BATCH_SIZE;
+    this.trainingIdleFlushMs =
+      options.trainingIdleFlushMs ?? Edgework.DEFAULT_TRAINING_IDLE_FLUSH_MS;
+    this.communityParticipation = options.communityParticipation ?? false;
     this.systemPrompt = getSystemPromptInternal(modelId);
   }
 
@@ -173,7 +193,14 @@ export class Edgework {
    */
   static async init(options: EdgeworkOptions): Promise<Edgework> {
     // Validate options
-    const validated = EdgeworkOptionsSchema.parse(options);
+    const parsedOptions = EdgeworkOptionsSchema.parse(options);
+    if (!parsedOptions.model) {
+      throw new Error('Model is required');
+    }
+    const validated: EdgeworkOptions = {
+      ...parsedOptions,
+      model: parsedOptions.model,
+    };
 
     // Create storage
     const storage = await createStorageInternal({
@@ -225,16 +252,31 @@ export class Edgework {
     if (validated.enableRLHF) {
       const config = getModelConfigInternal(validated.model);
       if (config) {
+        const deviceId = validated.userId ?? edgework.generateDeviceId();
+        const federatedSync = validated.federatedSyncUrl
+          ? new FederatedSync({
+              hubUrl: validated.federatedSyncUrl,
+              modelId: validated.model,
+              deviceId,
+            })
+          : undefined;
+
         edgework.rlhfTrainer = new RLHFTrainerInternal({
           storage,
           modelId: validated.model,
-          userId: validated.userId ?? edgework.generateDeviceId(),
+          userId: deviceId,
           hiddenDim: config.hiddenDim,
+          modality: 'text',
+          batchSize: edgework.trainingBatchSize,
+          communityParticipation: edgework.communityParticipation,
+          federatedSync,
         });
         await edgework.rlhfTrainer.initialize();
+        edgework.modalityTrainers.set('text', edgework.rlhfTrainer);
       }
     }
 
+    edgework.bindSessionFlushHooks();
     return edgework;
   }
 
@@ -340,6 +382,190 @@ export class Edgework {
   }
 
   /**
+   * Unified modality inference API.
+   */
+  async infer(
+    modality: Modality,
+    input: unknown,
+    options: GenerateOptions = {}
+  ): Promise<ModalityInferenceResult | InferenceError> {
+    const startedAt = Date.now();
+    try {
+      if (!this.inference) {
+        return this.createInferenceError(
+          modality,
+          'MODEL_NOT_READY',
+          'Inference engine not initialized',
+          5_000
+        );
+      }
+
+      if (modality === 'text') {
+        if (typeof input !== 'string' || input.trim().length === 0) {
+          return this.createInferenceError(
+            modality,
+            'MODEL_UNAVAILABLE',
+            'Text modality requires a non-empty string input'
+          );
+        }
+
+        const result = await this.generate(input, options);
+        return {
+          modality,
+          modelId: this.modelId,
+          modelVersion: 'local-v1',
+          output: {
+            text: result.text,
+            tokenCount: result.tokenCount,
+            tokensPerSecond: result.tokensPerSecond,
+          },
+          durationMs: result.durationMs,
+        };
+      }
+
+      if (modality === 'embeddings') {
+        if (typeof input !== 'string' || input.trim().length === 0) {
+          return this.createInferenceError(
+            modality,
+            'MODEL_UNAVAILABLE',
+            'Embeddings modality requires a non-empty string input'
+          );
+        }
+
+        const embedding = await this.embed(input);
+        return {
+          modality,
+          modelId: this.modelId,
+          modelVersion: 'local-v1',
+          output: Array.from(embedding),
+          durationMs: Date.now() - startedAt,
+        };
+      }
+
+      return this.createInferenceError(
+        modality,
+        'MODEL_NOT_READY',
+        `${modality} modality is not yet available in this SDK build`,
+        30_000
+      );
+    } catch (error) {
+      return this.createInferenceError(
+        modality,
+        'MODEL_UNAVAILABLE',
+        error instanceof Error ? error.message : 'Unknown inference error'
+      );
+    }
+  }
+
+  /**
+   * Record a modality-specific training signal for micro-batch training.
+   */
+  async recordSignal(
+    modality: Modality,
+    signal: ModalityTrainingSignal
+  ): Promise<void> {
+    const queue = this.pendingSignals.get(modality) ?? [];
+    queue.push(signal);
+    this.pendingSignals.set(modality, queue);
+
+    if (queue.length >= this.trainingBatchSize) {
+      await this.flushTraining(modality);
+      return;
+    }
+
+    this.scheduleIdleFlush();
+  }
+
+  /**
+   * Flush pending local training for one modality or all modalities.
+   */
+  async flushTraining(modality?: Modality): Promise<TrainingFlushResult> {
+    const targetModalities: Modality[] = modality
+      ? [modality]
+      : ([
+          'text',
+          'stt',
+          'tts',
+          'translation',
+          'embeddings',
+          'classification',
+          'image',
+        ] as Modality[]);
+    const startedAt = new Date().toISOString();
+    let trainedExamples = 0;
+    let pendingExamples = 0;
+    let communitySyncAttempted = false;
+    let communitySyncApplied = false;
+
+    for (const target of targetModalities) {
+      const trainer = this.modalityTrainers.get(target);
+      const signals = this.pendingSignals.get(target) ?? [];
+      if (!trainer || signals.length === 0) {
+        pendingExamples += signals.length;
+        continue;
+      }
+
+      const before = trainer.getStats().examples;
+
+      for (const signal of signals) {
+        const hiddenState =
+          signal.hiddenState ??
+          this.inference?.getLastHiddenState() ??
+          undefined;
+        if (!hiddenState) {
+          continue;
+        }
+
+        const feedbackValue =
+          typeof signal.feedback === 'number' ? signal.feedback : 1;
+        const feedback: RLHFFeedback = {
+          messageHash:
+            signal.messageHash ||
+            `${target}-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 10)}`,
+          feedback: Math.max(-1, Math.min(1, feedbackValue)),
+          hiddenState,
+        };
+        await trainer.recordFeedback(feedback);
+      }
+
+      await trainer.train();
+      this.pendingSignals.set(target, []);
+
+      if (this.communityParticipation) {
+        communitySyncAttempted = true;
+        await trainer.syncUpdates();
+        communitySyncApplied = true;
+      }
+
+      const after = trainer.getStats().examples;
+      trainedExamples += Math.max(0, after - before);
+    }
+
+    this.clearIdleFlushTimer();
+
+    return {
+      modality: modality ?? 'all',
+      trainedExamples,
+      pendingExamples,
+      communitySyncAttempted,
+      communitySyncApplied,
+      flushedAt: startedAt,
+    };
+  }
+
+  /**
+   * Enable or disable community update sharing.
+   */
+  async setCommunityParticipation(enabled: boolean): Promise<void> {
+    this.communityParticipation = enabled;
+    for (const trainer of this.modalityTrainers.values()) {
+      trainer.setCommunityParticipation(enabled);
+    }
+  }
+
+  /**
    * Get model status and info
    */
   get status(): EngineInfo | null {
@@ -380,6 +606,60 @@ export class Edgework {
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
+  }
+
+  private scheduleIdleFlush(): void {
+    if (this.idleFlushTimer) {
+      return;
+    }
+    this.idleFlushTimer = setTimeout(() => {
+      this.idleFlushTimer = null;
+      void this.flushTraining();
+    }, this.trainingIdleFlushMs);
+  }
+
+  private clearIdleFlushTimer(): void {
+    if (!this.idleFlushTimer) {
+      return;
+    }
+    clearTimeout(this.idleFlushTimer);
+    this.idleFlushTimer = null;
+  }
+
+  private bindSessionFlushHooks(): void {
+    if (
+      typeof window !== 'undefined' &&
+      typeof window.addEventListener === 'function'
+    ) {
+      window.addEventListener('beforeunload', () => {
+        void this.flushTraining();
+      });
+    }
+
+    const runtime = globalThis as {
+      process?: { on?: (event: string, cb: () => void) => void };
+    };
+    if (runtime.process && typeof runtime.process.on === 'function') {
+      runtime.process.on('beforeExit', () => {
+        void this.flushTraining();
+      });
+    }
+  }
+
+  private createInferenceError(
+    modality: Modality,
+    code: InferenceError['code'],
+    message: string,
+    retryAfterMs?: number
+  ): InferenceError {
+    return {
+      code,
+      message,
+      modality,
+      modelId: this.modelId,
+      modelVersion: 'local-v1',
+      retryAfterMs,
+    };
   }
 }
 

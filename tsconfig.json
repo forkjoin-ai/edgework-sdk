@@ -10,8 +10,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "declarationMap": true,
+    "composite": true,
     "outDir": "dist",
-    "rootDir": "../..",
+    "rootDir": "src",
     "baseUrl": ".",
     "paths": {
       "@emotions-app/shared-ui/*": ["../../shared-ui/*"],
@@ -19,7 +20,7 @@
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
+    "noEmit": false,
     "types": ["bun-types", "@webgpu/types"]
   },
   "include": ["src/**/*"],

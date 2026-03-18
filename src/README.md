@@ -11,6 +11,7 @@ The `src` directory contains the source code for the `@affectively/edgework-sdk`
 - **Storage Abstractions**: Handlers for IndexedDB, OPFS, and memory storage.
 - **Model Synchronization**: Logic to download and cache model weights.
 - **RLHF Training**: On-device Reinforcement Learning from Human Feedback.
+- **Agent Runtime**: EADK agent core with Gnosis-style topology runtime for client orchestration and fetch compatibility.
 
 ## Key Files
 
@@ -44,7 +45,9 @@ Last Updated: 2026-01-31
 
 ## Sub-Directories
 
+- **[Agent](./agent/README.md)**
 - **[Auth](./auth)**
 - **[Compute](./compute)**
 - **[Data](./data)**
+- **[Deploy](./deploy/README.md)**
 - **[React](./react)**

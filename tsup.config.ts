@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
+  tsconfig: 'tsconfig.build.json',
   entry: {
     index: 'src/index.ts',
     'data/storage/index': 'src/data/storage/index.ts',
@@ -12,6 +13,19 @@ export default defineConfig({
     'compute/rlhf/index': 'src/compute/rlhf/index.ts',
     'react/index': 'src/react/index.ts',
     'auth/index': 'src/auth/index.ts',
+    'deploy/index': 'src/deploy/index.ts',
+    'agent/index': 'src/agent/index.ts',
+    'agent/core/index': 'src/agent/core/index.ts',
+    'agent/guardrails/index': 'src/agent/guardrails/index.ts',
+    'agent/memory/index': 'src/agent/memory/index.ts',
+    'agent/orchestration/index': 'src/agent/orchestration/index.ts',
+    'agent/tracing/index': 'src/agent/tracing/index.ts',
+    'agent/eval/index': 'src/agent/eval/index.ts',
+    'agent/edge/index': 'src/agent/edge/index.ts',
+    'agent/transport/index': 'src/agent/transport/index.ts',
+    'agent/wasm/index': 'src/agent/wasm/index.ts',
+    'agent/react/index': 'src/agent/react/index.ts',
+    'agent/mcp/index': 'src/agent/mcp/index.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

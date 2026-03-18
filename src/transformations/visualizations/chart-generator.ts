@@ -1,4 +1,3 @@
-/* eslint-disable design-system/no-hardcoded-colors -- visualization chart colors are data-driven, not UI theme colors */
 /**
  * Advanced visualization generation system
  * Creates charts, graphs, and visual representations of data

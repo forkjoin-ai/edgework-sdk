@@ -18,7 +18,7 @@ Access to the centralized AI Gateway.
 ## Usage
 
 ### WASM Gateway Client
-The `WasmGatewayClient` offers a performant interface to the AI Gateway, utilizing a compiled Rust module for request handling.
+The `WasmGatewayClient` offers a performant interface to the AI Gateway, utilizing a compiled Rust module for request handling and Gnosis runtime orchestration for client lifecycle steps.
 
 ```typescript
 import { WasmGatewayClient } from '@edgework/sdk/compute/wasm-gateway-client';

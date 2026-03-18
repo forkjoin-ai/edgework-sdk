@@ -874,7 +874,7 @@ export class TemplateManager {
   }
 
   /**
-   * Check if section should be rendered based on conditions
+   * Check if section should be rendered based on experiences
    */
   private shouldRenderSection(
     section: TemplateSection,

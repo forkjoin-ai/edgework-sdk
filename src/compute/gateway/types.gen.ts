@@ -11,7 +11,7 @@ export type ClientOptions = {
 export type ChatCompletionRequest = {
   /**
    * Model identifier. Can be:
-   * - Text models: "mistral-7b", "llama-70b", "llama-13b", "glm-4.7", "qwen-edit", "tinyllama-1.1b", "deepseek-1.5b", "deepseek-3b"
+   * - Text models: "mistral-7b", "llama-70b", "glm-4-9b", "glm-4.7", "qwen-edit", "tinyllama-1.1b", "deepseek-1.5b", "deepseek-3b"
    * - Vision: "flux-4b"
    * - Audio: "vibevoice-9b"
    * - Translation: "translategemma-4b"

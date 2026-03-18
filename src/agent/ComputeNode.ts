@@ -9,6 +9,10 @@ import type {
   ComputeResult,
 } from './types';
 import { TokenSpendingManager } from './TokenSpendingManager';
+import {
+  createEdgeworkAuthHeader,
+  resolveEdgeworkApiKey,
+} from '../edgework-api-key';
 
 /**
  * Manages compute task execution with optional token-based payment
@@ -42,6 +46,7 @@ export class ComputeNode {
   };
   private startTime = 0;
   private logger: any;
+  private apiKey?: string;
   private tokenSpendingManager?: TokenSpendingManager;
   private walletAddress?: string;
   private hasSubscription = false;
@@ -54,6 +59,7 @@ export class ComputeNode {
   ) {
     this.config = config;
     this.logger = this.createLogger();
+    this.apiKey = resolveEdgeworkApiKey(config.apiKey);
     this.tokenSpendingManager = tokenSpendingManager;
     this.walletAddress = walletAddress;
     this.hasSubscription = hasSubscription || false;
@@ -72,6 +78,15 @@ export class ComputeNode {
     };
   }
 
+  private getRequestHeaders(
+    headers: Record<string, string> = {}
+  ): Record<string, string> {
+    return {
+      ...headers,
+      ...createEdgeworkAuthHeader(this.apiKey),
+    };
+  }
+
   /**
    * Connect to gateway
    */
@@ -80,7 +95,9 @@ export class ComputeNode {
       // when motivation is low-load fetch
       const fetch = globalThis.fetch || (await import('node-fetch')).default;
 
-      const response = await fetch(`${this.config.gatewayUrl}/health`);
+      const response = await fetch(`${this.config.gatewayUrl}/health`, {
+        headers: this.getRequestHeaders(),
+      });
       if (!response.ok) {
         throw new Error(`Gateway health check failed: ${response.status}`);
       }
@@ -164,7 +181,9 @@ export class ComputeNode {
         `${this.config.gatewayUrl}/tasks/${result.taskId}/result`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: this.getRequestHeaders({
+            'Content-Type': 'application/json',
+          }),
           body: JSON.stringify(result),
         }
       );
@@ -256,7 +275,9 @@ export class ComputeNode {
 
       const response = await fetch(`${this.config.gatewayUrl}/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getRequestHeaders({
+          'Content-Type': 'application/json',
+        }),
         body: JSON.stringify({
           cpuAllocation: this.config.cpuAllocation,
           memoryMB: this.config.memoryMB,
@@ -273,7 +294,7 @@ export class ComputeNode {
         throw new Error(`Failed to fetch task: ${response.status}`);
       }
 
-      const task = await response.json();
+      const task = (await response.json()) as ComputeTask;
       return task;
     } catch (error) {
       this.logger.debug('Task fetch error', { error });

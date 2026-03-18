@@ -12,7 +12,7 @@ import {
 } from './proxy-handler.js';
 
 console.info(`
-🚀 Edgework AI Proxy
+[edgework] AI Proxy
 --------------------
 Listening on: http://${HOST}:${PORT}
 Target:       Edgework AI Gateway (${EDGE_BASE_URL})
@@ -20,6 +20,7 @@ Debug Mode:   ${DEBUG ? 'ENABLED' : 'DISABLED'}
 
 Supported Endpoints:
   - POST /v1/chat/completions (Typed SDK)
+  - POST /v1/aeon/completions (Aeon multimodal alias)
   - POST /v1/embeddings       (Typed SDK)
   - GET  /v1/models           (Typed SDK)
   - GET  /api/tags            (Ollama Compat)

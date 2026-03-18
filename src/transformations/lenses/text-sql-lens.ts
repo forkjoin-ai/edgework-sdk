@@ -273,7 +273,7 @@ INSERT INTO imported_data (content) VALUES
           'Data analysis complete. The dataset contains structured information suitable for further processing.',
         insights: [
           'Data shows consistent patterns',
-          'Statistical analysis reveals normal distribution',
+          'Statistical analysis reveals typical distribution',
           'Quality metrics indicate good data integrity',
         ],
         confidence: 0.9,

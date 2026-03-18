@@ -153,7 +153,6 @@ export function ModelStatus({
             {}
             <div
               className="h-full bg-blue-500 transition-all duration-300 ease-out"
-              // eslint-disable-next-line no-restricted-syntax -- dynamic width requires inline style
               style={{ width: `${downloadProgress}%` }}
             />
           </div>

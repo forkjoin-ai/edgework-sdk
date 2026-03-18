@@ -2,7 +2,7 @@
 
 **The easiest way to turn your CPU/WebGPU/WebNN into productive compute.**
 
-This kit lets you spin up an agent that contributes compute to the Edgework network—no C&C overhead, just pure compute contribution. Start an agent with a single command, let it earn while your system idles.
+This kit lets you spin up an agent that contributes compute to the Edgework network -- no C&C overhead, just pure compute contribution. Start an agent with a single command, let it earn while your system idles.
 
 ## Features
 
@@ -13,6 +13,10 @@ This kit lets you spin up an agent that contributes compute to the Edgework netw
 - 🖥️ **System Tray** - Optional native integration (Windows/macOS/Linux)
 - 🔄 **Auto-Restart** - Optional boot persistence
 - 🌍 **Multi-Platform** - macOS, Windows, Linux, even Raspberry Pi
+
+## Gnosis Runtime
+
+Agent client adapters now execute through a Gnosis-compatible runtime layer using topology primitives (`PROCESS`, `FORK`, `RACE`, `FOLD`, `VENT`) with a shared fetch compatibility wrapper.
 
 ## Quick Start
 
@@ -39,6 +43,13 @@ bun run edgework-gateway:start
 
 ```bash
 bun run edgework-agent:start
+```
+
+### Environment
+
+```bash
+# Used by AgentManager, ComputeNode gateway calls, and relayer registration
+export EDGEWORK_API_KEY="your-edgework-api-key"
 ```
 
 ## Commands
@@ -136,6 +147,7 @@ Orchestrates the gateway connector and compute node:
 const agent = new AgentManager({
   walletAddress: '0x...',
   gatewayName: 'My Node',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
   cpuAllocation: 0.8,
 });
 
@@ -155,6 +167,7 @@ Handles Optimism wallet registration:
 const gateway = new GatewayConnector({
   provider: 'https://sepolia.optimism.io',
   walletAddress: '0x...',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
 });
 
 // Optional: Auto-create wallet and register
@@ -174,6 +187,7 @@ Browser-based compute that runs in tabs/workers:
 ```typescript
 const node = new ComputeNode({
   gatewayUrl: 'http://localhost:8080',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
   cpuAllocation: 0.8,
 });
 
@@ -231,7 +245,7 @@ Keys are encrypted with a device-specific key derived from:
 - OS username
 - Local hardware fingerprint
 
-This is "custodial lite"—you keep full control, agent keeps keys safe locally.
+This is "custodial lite" -- you keep full control, agent keeps keys safe locally.
 
 ## Compute Contribution Flow
 
@@ -300,6 +314,8 @@ CMD ["bun", "run", "edgework-agent:start"]
 Gateway operators earn 5% commission on facilitated compute.
 
 ## License
+
+Copyright Taylor William Buley. All rights reserved.
 
 Apache-2.0
 

@@ -144,6 +144,10 @@ export const EdgeworkOptionsSchema = z.object({
     .returns(z.void())
     .optional(),
   enableRLHF: z.boolean().optional().default(false),
+  communityParticipation: z.boolean().optional().default(false),
+  federatedSyncUrl: z.string().url().optional(),
+  trainingBatchSize: z.number().int().positive().optional().default(16),
+  trainingIdleFlushMs: z.number().int().positive().optional().default(45000),
   cacheDir: z.string().optional(),
   userId: z.string().optional(),
   storageBackend: StorageBackendSchema.optional(),

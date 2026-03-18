@@ -5,35 +5,50 @@
  */
 
 import type { BaseStorage } from '../../data/storage/base-storage';
-import type { RLHFFeedback, UserAdapter, TrainingLogEntry } from '../../types';
+import type {
+  RLHFFeedback,
+  UserAdapter,
+  Modality,
+  GradientEnvelope,
+} from '../../types';
 import { RewardModel } from './reward-model';
+import { FederatedSync } from './federated-sync';
 
 export interface RLHFTrainerConfig {
   storage: BaseStorage;
   modelId: string;
   userId: string;
   hiddenDim: number;
+  modality?: Modality;
   learningRate?: number;
   batchSize?: number;
+  federatedSync?: FederatedSync;
+  communityParticipation?: boolean;
 }
 
 export class RLHFTrainer {
   private storage: BaseStorage;
   private modelId: string;
   private userId: string;
+  private modality: Modality;
   private rewardModel: RewardModel;
   private batchSize: number;
   private adapterId: string;
   private pendingFeedback: RLHFFeedback[] = [];
   private trainingExamples = 0;
   private lastTrained?: string;
+  private federatedSync: FederatedSync | null;
+  private communityParticipation: boolean;
 
   constructor(config: RLHFTrainerConfig) {
     this.storage = config.storage;
     this.modelId = config.modelId;
     this.userId = config.userId;
+    this.modality = config.modality ?? 'text';
     this.batchSize = config.batchSize ?? 8;
-    this.adapterId = `${config.modelId}:${config.userId}:reward`;
+    this.adapterId = `${config.modelId}:${config.userId}:${this.modality}:reward`;
+    this.federatedSync = config.federatedSync ?? null;
+    this.communityParticipation = config.communityParticipation ?? false;
 
     this.rewardModel = new RewardModel({
       inputDim: config.hiddenDim,
@@ -47,7 +62,8 @@ export class RLHFTrainer {
   async initialize(): Promise<void> {
     const adapter = await this.storage.getUserAdapter(
       this.modelId,
-      this.userId
+      this.userId,
+      this.adapterId
     );
     if (adapter) {
       this.rewardModel.loadWeights(adapter.weights);
@@ -174,8 +190,49 @@ export class RLHFTrainer {
    * Sync adapter updates with server (federated learning)
    */
   async syncUpdates(): Promise<void> {
-    // This would connect to a federated learning hub
-    // NOTE(liquidated): For now, just save locally
     await this.saveAdapter();
+    if (!this.communityParticipation || !this.federatedSync) {
+      return;
+    }
+
+    const aggregated = await this.federatedSync.sync({
+      gradients: this.getGradientUpdate(),
+      feedbackCount: this.trainingExamples,
+      deviceId: this.userId,
+      modelId: this.modelId,
+      modality: this.modality,
+      baseVersion: 'local-v1',
+      adapterBaseVersion: this.lastTrained || 'local',
+    });
+
+    if (aggregated) {
+      await this.applyGradientUpdate(aggregated);
+    }
+  }
+
+  /**
+   * Enable/disable community update sharing.
+   */
+  setCommunityParticipation(enabled: boolean): void {
+    this.communityParticipation = enabled;
+  }
+
+  /**
+   * Build a signed envelope payload for external aggregation services.
+   */
+  toGradientEnvelope(
+    deviceProof: string,
+    dpNoiseSeedId: string
+  ): GradientEnvelope {
+    return {
+      modality: this.modality,
+      modelId: this.modelId,
+      baseVersion: 'local-v1',
+      adapterBaseVersion: this.lastTrained || 'local',
+      clippedDelta: this.getGradientUpdate(),
+      dpNoiseSeedId,
+      deviceProof,
+      createdAt: new Date().toISOString(),
+    };
   }
 }

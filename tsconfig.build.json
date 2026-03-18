@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*.js", "src/**/*.js.map"],
+  "references": [
+    {
+      "path": "../../shared-utils"
+    },
+    {
+      "path": "../../shared-ui"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+[project]
+name = "edgework-sdk"
+runtime = "bun"
+kind = "site"
+port = 4221
+buildCommand = "bun run build"

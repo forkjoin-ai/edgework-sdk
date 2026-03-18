@@ -4,11 +4,16 @@
  * Privacy-preserving synchronization of adapter updates.
  */
 
+import type { GradientEnvelope, Modality } from '../../types';
+
 export interface FederatedSyncConfig {
   hubUrl: string;
   modelId: string;
   deviceId: string;
-  epsilon?: number; // Differential privacy noise level
+  epsilon?: number; // Differential privacy epsilon
+  clipNorm?: number; // L2 clipping norm
+  noiseMultiplier?: number; // Laplace noise multiplier
+  minCohort?: number; // Minimum aggregation cohort
 }
 
 export interface GradientUpdate {
@@ -16,6 +21,9 @@ export interface GradientUpdate {
   feedbackCount: number;
   deviceId: string;
   modelId: string;
+  modality: Modality;
+  baseVersion: string;
+  adapterBaseVersion: string;
 }
 
 export class FederatedSync {
@@ -23,12 +31,40 @@ export class FederatedSync {
   private modelId: string;
   private deviceId: string;
   private epsilon: number;
+  private clipNorm: number;
+  private noiseMultiplier: number;
+  private minCohort: number;
 
   constructor(config: FederatedSyncConfig) {
     this.hubUrl = config.hubUrl.replace(/\/$/, '');
     this.modelId = config.modelId;
     this.deviceId = config.deviceId;
     this.epsilon = config.epsilon ?? 1.0;
+    this.clipNorm = config.clipNorm ?? 1.0;
+    this.noiseMultiplier = config.noiseMultiplier ?? 0.6;
+    this.minCohort = config.minCohort ?? 128;
+  }
+
+  /**
+   * Clip gradients to a fixed L2 norm bound.
+   */
+  private clipGradients(gradients: ArrayBuffer): ArrayBuffer {
+    const data = new Float32Array(gradients);
+    let squaredNorm = 0;
+    for (let i = 0; i < data.length; i++) {
+      squaredNorm += data[i] * data[i];
+    }
+    const norm = Math.sqrt(squaredNorm);
+    if (norm === 0 || norm <= this.clipNorm) {
+      return gradients;
+    }
+
+    const scale = this.clipNorm / norm;
+    const clipped = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      clipped[i] = data[i] * scale;
+    }
+    return clipped.buffer;
   }
 
   /**
@@ -42,7 +78,9 @@ export class FederatedSync {
     for (let i = 0; i < data.length; i++) {
       const u = Math.random() - 0.5;
       const noise =
-        -this.epsilon * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+        -(this.noiseMultiplier / Math.max(this.epsilon, 1e-6)) *
+        Math.sign(u) *
+        Math.log(1 - 2 * Math.abs(u));
       noisy[i] = data[i] + noise;
     }
 
@@ -50,21 +88,45 @@ export class FederatedSync {
   }
 
   /**
+   * Build a gradient envelope compatible with D1/Dash sync metadata.
+   */
+  buildEnvelope(update: GradientUpdate, deviceProof: string): GradientEnvelope {
+    const clipped = this.clipGradients(update.gradients);
+    const noised = this.addDifferentialPrivacyNoise(clipped);
+    return {
+      modality: update.modality,
+      modelId: update.modelId,
+      baseVersion: update.baseVersion,
+      adapterBaseVersion: update.adapterBaseVersion,
+      clippedDelta: noised,
+      dpNoiseSeedId: crypto.randomUUID(),
+      deviceProof,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  /**
    * Send gradient update to hub
    */
   async sendUpdate(update: GradientUpdate): Promise<void> {
-    // Add differential privacy noise
-    const noisyGradients = this.addDifferentialPrivacyNoise(update.gradients);
+    const envelope = this.buildEnvelope(update, update.deviceId);
+    const cohortHeaders: Record<string, string> = {
+      'Content-Type': 'application/octet-stream',
+      'X-Model-Id': this.modelId,
+      'X-Device-Id': this.deviceId,
+      'X-Feedback-Count': String(update.feedbackCount),
+      'X-Modality': update.modality,
+      'X-Base-Version': update.baseVersion,
+      'X-Adapter-Base-Version': update.adapterBaseVersion,
+      'X-Min-Cohort': String(this.minCohort),
+      'X-DP-Noise-Seed-Id': envelope.dpNoiseSeedId,
+      'X-Device-Proof': envelope.deviceProof,
+    };
 
     const response = await fetch(`${this.hubUrl}/updates`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'X-Model-Id': this.modelId,
-        'X-Device-Id': this.deviceId,
-        'X-Feedback-Count': String(update.feedbackCount),
-      },
-      body: noisyGradients,
+      headers: cohortHeaders,
+      body: envelope.clippedDelta,
     });
 
     if (!response.ok) {
@@ -79,6 +141,7 @@ export class FederatedSync {
     const response = await fetch(`${this.hubUrl}/aggregated/${this.modelId}`, {
       headers: {
         'X-Device-Id': this.deviceId,
+        'X-Min-Cohort': String(this.minCohort),
       },
     });
 

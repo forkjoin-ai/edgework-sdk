@@ -18,6 +18,14 @@ The **Edgework CLI** provides terminal commands for managing the decentralized e
   - Multiple output formats (markdown, JSON, HTML, LaTeX, PDF)
   - Luxury report templates (executive, monthly, technical, insights)
 
+### Media Generation
+- **Media**: Generate images and videos from the edge OpenAI-compatible API
+  - Writes binary files to disk (`.png`, `.mp4`) by default
+  - Accepts canonical model IDs only and rejects removed misleading aliases
+  - Verifies video model readiness via `/v1/models` before generating video
+  - Uses API key from `EDGEWORK_API_KEY`, `EDGEWORK_API_TOKEN`, or `EW_API_KEY`
+  - Supports `b64_json` and `url` response formats
+
 ## Query Command Examples
 
 ```bash
@@ -34,6 +42,32 @@ dash query "SELECT * FROM sales" | edgework query --template=monthly-report
 edgework query --analyze --validate-outliers --format=html data.csv
 edgework query --template=executive-summary --include-stats results.json
 edgework query --mode=text2sql --recommend-types "Mixed data content"
+```
+
+## Media Command Examples
+
+```bash
+# Image generation (writes PNG only when API returns usable image output)
+bun run media:image -- \
+  --prompt "ultra-detailed portrait, studio lighting" \
+  --model ssd-1b-lcm-int8 \
+  --size 512x512 \
+  --out ssd.png
+
+# Video generation -> writes ltx.mp4
+bun run media:video -- \
+  --prompt "cinematic snow over mountains, aerial shot" \
+  --model ltx-video \
+  --size 256x256 \
+  --fps 8 \
+  --num-frames 24 \
+  --out ltx.mp4
+
+# Override edge URL / user id explicitly
+bun run media -- video \
+  --edge-url https://edge.affectively.ai \
+  --user-id my-user \
+  --prompt "sunrise time-lapse over ocean"
 ```
 
 ## Query Features

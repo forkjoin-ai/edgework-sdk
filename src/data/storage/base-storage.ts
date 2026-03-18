@@ -51,7 +51,8 @@ export abstract class BaseStorage {
   // User adapters (for RLHF)
   abstract getUserAdapter(
     modelId: string,
-    userId: string
+    userId: string,
+    adapterId?: string
   ): Promise<UserAdapter | null>;
   abstract setUserAdapter(adapter: UserAdapter): Promise<void>;
   abstract deleteUserAdapter(adapterId: string): Promise<void>;

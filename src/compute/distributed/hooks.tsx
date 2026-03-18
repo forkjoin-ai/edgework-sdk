@@ -259,7 +259,6 @@ export function useStreamingInference(config: UseDistributedInferenceConfig) {
   });
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  // eslint-disable-next-line technical/require-timer-type-safety -- this is a timestamp array, not a timer reference
   const tokenTimestampsRef = useRef<number[]>([]);
 
   /**

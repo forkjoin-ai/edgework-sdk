@@ -520,11 +520,9 @@ export class DistributedClient {
 
     setTimeout(() => {
       if (!this.isShutdown) {
-        this.connect(endpoint).catch(
-          () => {
-            /* noop - error handling is done in connect() */
-          }
-        );
+        this.connect(endpoint).catch(() => {
+          /* noop - error handling is done in connect() */
+        });
       }
     }, delay);
   }
@@ -606,11 +604,9 @@ export class DistributedClient {
   private startHealthChecks(): void {
     this.healthCheckInterval = setInterval(() => {
       for (const endpoint of this.config.endpoints) {
-        this.checkHealth(endpoint).catch(
-          () => {
-            /* noop - error handling is done in checkHealth */
-          }
-        );
+        this.checkHealth(endpoint).catch(() => {
+          /* noop - error handling is done in checkHealth */
+        });
       }
     }, this.config.healthCheckIntervalMs);
   }
@@ -883,10 +879,17 @@ export class DistributedClient {
       this.recordLatency(endpoint, latency, response.ok);
 
       if (!response.ok) {
-        const error = await response
+        const error = (await response
           .json()
-          .catch(() => ({ message: 'Unknown error' }));
-        throw new Error(error.message || `HTTP ${response.status}`);
+          .catch((): unknown => ({ message: 'Unknown error' }))) as unknown;
+        const errorMessage =
+          typeof error === 'object' &&
+          error !== null &&
+          'message' in error &&
+          typeof error.message === 'string'
+            ? error.message
+            : `HTTP ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       const data = (await response.json()) as any;

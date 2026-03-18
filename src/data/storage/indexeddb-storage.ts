@@ -194,12 +194,18 @@ export class IndexedDBStorage extends BaseStorage {
   // User adapters
   async getUserAdapter(
     modelId: string,
-    userId: string
+    userId: string,
+    adapterId?: string
   ): Promise<UserAdapter | null> {
     const store = this.getStore('userAdapters');
     const index = store.index('modelUser');
     const results = await this.promisify(index.getAll([modelId, userId]));
-    return results[0] || null;
+    if (!adapterId) {
+      return results[0] || null;
+    }
+    return (
+      (results.find((result) => result.id === adapterId) as UserAdapter) || null
+    );
   }
 
   async setUserAdapter(adapter: UserAdapter): Promise<void> {

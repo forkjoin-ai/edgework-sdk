@@ -12,7 +12,13 @@ const mockInit = jest.fn(async () => undefined);
 
 class MockGatewayClient {
   create_chat_completion = jest.fn();
-  health_check = jest.fn();
+  health_check = jest.fn(async () => ({
+    status: 'operational',
+    providers: {},
+    rate_limits: {},
+    token_counter: { total: 0 },
+    cache: { hit_rate: 0 },
+  }));
 
   constructor(_basePath: string, _token: string) {
     /* noop */
@@ -73,8 +79,11 @@ describe('WasmGatewayClient', () => {
     expect(client).toBeDefined();
   });
 
-  // Skipped because reqwest-wasm requires a full browser environment or deeper mocking than bun:test provides (fails with 'url parse')
-  it.skip('should invoke healthCheck', async () => {
+  // NOTE(liquidated): This test is skipped because:
+  // - reqwest-wasm requires a full browser environment or deeper mocking
+  // - Fails with 'url parse' error in Bun test environment
+  // - Blocked by: WASM/reqwest browser environment requirements
+  it('should invoke healthCheck', async () => {
     const client = new WasmGatewayClient('http://localhost:3000', 'test-token');
 
     // Mock the fetch call that the Rust client will make

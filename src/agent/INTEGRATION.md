@@ -76,9 +76,12 @@ Registers gateway on Optimism and manages heartbeats.
 ```typescript
 import { GatewayConnector } from '@affectively/edgework-sdk/agent';
 
+process.env.EDGEWORK_API_KEY = process.env.EDGEWORK_API_KEY || 'your-api-key';
+
 const connector = new GatewayConnector({
   walletAddress: '0x...',
   provider: 'https://sepolia.optimism.io',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
 });
 
 // Connect to network
@@ -128,6 +131,7 @@ import { ComputeNode } from '@affectively/edgework-sdk/agent';
 
 const node = new ComputeNode({
   gatewayUrl: 'http://localhost:8080',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
   cpuAllocation: 0.8,
   memoryMB: 2048,
   maxTaskDuration: 600,
@@ -168,6 +172,7 @@ import { AgentManager } from '@affectively/edgework-sdk/agent';
 
 const manager = new AgentManager({
   gatewayName: 'My Compute Node',
+  apiKey: process.env.EDGEWORK_API_KEY, // optional; env fallback is automatic
   cpuAllocation: 0.8,
   enableSystemTray: true,
   runAtBoot: true,

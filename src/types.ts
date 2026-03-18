@@ -114,6 +114,18 @@ export interface EdgeworkOptions {
   /** Enable on-device RLHF */
   enableRLHF?: boolean;
 
+  /** Enable community aggregation sync (opt-in) */
+  communityParticipation?: boolean;
+
+  /** Federated aggregation hub URL (optional) */
+  federatedSyncUrl?: string;
+
+  /** Micro-batch size for on-device training (default: 16) */
+  trainingBatchSize?: number;
+
+  /** Idle flush timeout in milliseconds (default: 45000) */
+  trainingIdleFlushMs?: number;
+
   /** Local cache directory (Node.js only) */
   cacheDir?: string;
 
@@ -180,6 +192,99 @@ export interface RLHFFeedback {
   messageHash: string;
   feedback: number; // -1.0 to 1.0
   hiddenState?: Float32Array;
+}
+
+/**
+ * Supported multimodal inference domains
+ */
+export type Modality =
+  | 'text'
+  | 'stt'
+  | 'tts'
+  | 'translation'
+  | 'embeddings'
+  | 'classification'
+  | 'image';
+
+/**
+ * Structured inference error codes
+ */
+export type InferenceErrorCode =
+  | 'MODEL_NOT_READY'
+  | 'MODEL_UNAVAILABLE'
+  | 'QUALITY_GATE_FAILED'
+  | 'LOCAL_TRAINING_REQUIRED';
+
+/**
+ * Structured multimodal inference error payload
+ */
+export interface InferenceError {
+  code: InferenceErrorCode;
+  message: string;
+  modality: Modality;
+  modelId?: string;
+  modelVersion?: string;
+  retryAfterMs?: number;
+}
+
+/**
+ * Generic multimodal inference result
+ */
+export interface ModalityInferenceResult {
+  modality: Modality;
+  modelId: string;
+  modelVersion?: string;
+  output: unknown;
+  durationMs: number;
+}
+
+/**
+ * On-device training signal captured per modality
+ */
+export interface ModalityTrainingSignal {
+  messageHash?: string;
+  feedback?: number;
+  hiddenState?: Float32Array;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Result from flushing accumulated local training signals
+ */
+export interface TrainingFlushResult {
+  modality: Modality | 'all';
+  trainedExamples: number;
+  pendingExamples: number;
+  communitySyncAttempted: boolean;
+  communitySyncApplied: boolean;
+  flushedAt: string;
+}
+
+/**
+ * Distributed model manifest for sync
+ */
+export interface ModelManifest {
+  modelId: string;
+  modality: Modality;
+  baseVersion: string;
+  adapterVersion: string;
+  sha256: string;
+  chunkRefs: string[];
+  minSdkVersion: string;
+}
+
+/**
+ * Differentially-private gradient envelope
+ */
+export interface GradientEnvelope {
+  modality: Modality;
+  modelId: string;
+  baseVersion: string;
+  adapterBaseVersion: string;
+  clippedDelta: ArrayBuffer;
+  dpNoiseSeedId: string;
+  deviceProof: string;
+  createdAt: string;
 }
 
 /**
@@ -345,6 +450,9 @@ export interface RLHFTrainer {
 
   /** Sync adapter updates (federated learning) */
   syncUpdates(): Promise<void>;
+
+  /** Enable/disable participation in community aggregation */
+  setCommunityParticipation(enabled: boolean): void;
 
   /** Get training stats */
   getStats(): { examples: number; lastTrained?: string };

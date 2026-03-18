@@ -1,6 +1,6 @@
 {
   "name": "@affectively/edgework-sdk",
-  "version": "0.1.2",
+  "version": "5.0.0",
   "description": "Client-side AI inference SDK with D1/Dash storage, WebGPU inference, and on-device RLHF",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -65,6 +65,71 @@
       "types": "./dist/agent/index.d.ts",
       "import": "./dist/agent/index.mjs",
       "require": "./dist/agent/index.js"
+    },
+    "./agent/core": {
+      "types": "./dist/agent/core/index.d.ts",
+      "import": "./dist/agent/core/index.mjs",
+      "require": "./dist/agent/core/index.js"
+    },
+    "./agent/guardrails": {
+      "types": "./dist/agent/guardrails/index.d.ts",
+      "import": "./dist/agent/guardrails/index.mjs",
+      "require": "./dist/agent/guardrails/index.js"
+    },
+    "./agent/memory": {
+      "types": "./dist/agent/memory/index.d.ts",
+      "import": "./dist/agent/memory/index.mjs",
+      "require": "./dist/agent/memory/index.js"
+    },
+    "./agent/orchestration": {
+      "types": "./dist/agent/orchestration/index.d.ts",
+      "import": "./dist/agent/orchestration/index.mjs",
+      "require": "./dist/agent/orchestration/index.js"
+    },
+    "./agent/tracing": {
+      "types": "./dist/agent/tracing/index.d.ts",
+      "import": "./dist/agent/tracing/index.mjs",
+      "require": "./dist/agent/tracing/index.js"
+    },
+    "./agent/eval": {
+      "types": "./dist/agent/eval/index.d.ts",
+      "import": "./dist/agent/eval/index.mjs",
+      "require": "./dist/agent/eval/index.js"
+    },
+    "./agent/edge": {
+      "types": "./dist/agent/edge/index.d.ts",
+      "import": "./dist/agent/edge/index.mjs",
+      "require": "./dist/agent/edge/index.js"
+    },
+    "./agent/transport": {
+      "types": "./dist/agent/transport/index.d.ts",
+      "import": "./dist/agent/transport/index.mjs",
+      "require": "./dist/agent/transport/index.js"
+    },
+    "./agent/wasm": {
+      "types": "./dist/agent/wasm/index.d.ts",
+      "import": "./dist/agent/wasm/index.mjs",
+      "require": "./dist/agent/wasm/index.js"
+    },
+    "./agent/react": {
+      "types": "./dist/agent/react/index.d.ts",
+      "import": "./dist/agent/react/index.mjs",
+      "require": "./dist/agent/react/index.js"
+    },
+    "./agent/mcp": {
+      "types": "./dist/agent/mcp/index.d.ts",
+      "import": "./dist/agent/mcp/index.mjs",
+      "require": "./dist/agent/mcp/index.js"
+    },
+    "./deploy": {
+      "types": "./dist/deploy/index.d.ts",
+      "import": "./dist/deploy/index.mjs",
+      "require": "./dist/deploy/index.js"
+    },
+    "./esi-pool": {
+      "types": "./dist/esi-pool/index.d.ts",
+      "import": "./dist/esi-pool/index.mjs",
+      "require": "./dist/esi-pool/index.js"
     }
   },
   "files": [
@@ -75,7 +140,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "test": "bun test",
     "gen:client": "bun scripts/generate-clients.ts",
     "agent:setup": "bun cli/setup.ts",
@@ -88,24 +153,42 @@
     "proxy:start": "bun cli/proxy-start.ts",
     "proxy:debug": "bun cli/proxy-start.ts --debug",
     "proxy:login": "bun cli/proxy-login.ts",
-    "query": "bun cli/query.ts"
+    "query": "bun cli/query.ts",
+    "media": "bun cli/media.ts",
+    "media:image": "bun cli/media.ts image",
+    "media:video": "bun cli/media.ts video",
+    "quality": "bun cli/quality.ts",
+    "aeonpid:register": "bun cli/register-aeonpid.ts",
+    "forge:deploy": "bun ../../apps/aeon-forge/src/cli/cli.tsx deploy . --oneshot",
+    "forge:cd": "bun ../../apps/aeon-forge/src/cli/cli.tsx cd",
+    "forge:status": "bun ../../apps/aeon-forge/src/cli/cli.tsx status",
+    "forge:ae": "bun ../../apps/aeon-forge/src/cli/cli.tsx ae",
+    "forge:ae0n": "bun ../../apps/aeon-forge/src/cli/cli.tsx ae0n",
+    "forge:a0n": "bun ../../apps/aeon-forge/src/cli/cli.tsx a0n",
+    "forge:aetop": "bun ../../apps/aeon-forge/src/cli/cli.tsx aetop",
+    "forge:serve": "bun ../../apps/aeon-forge/src/cli/cli.tsx serve",
+    "forge:stop": "bun ../../apps/aeon-forge/src/cli/cli.tsx stop"
   },
   "keywords": [
     "ai",
+    "agent",
+    "adk",
     "inference",
     "webgpu",
     "edge",
     "offline",
     "rlhf",
     "client-side",
-    "llm"
+    "llm",
+    "orchestration",
+    "mcp",
+    "a2a"
   ],
-  "author": "AFFECTIVELY",
+  "author": "Taylor William Buley (https://buley.fyi)",
   "license": "UNLICENSED",
-  "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/affectively-ai/edgework-sdk"
+    "url": "https://github.com/forkjoin-ai/edgework-sdk"
   },
   "dependencies": {
     "ethers": "^6.13.5",

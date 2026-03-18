@@ -37,11 +37,11 @@ try {
     const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
     if (session && session.token) {
       sessionToken = session.token;
-      if (DEBUG) console.log(`🔑 Loaded session for: ${session.identity}`);
+      if (DEBUG) console.log(`[auth] Loaded session for: ${session.identity}`);
     }
   }
 } catch (e) {
-  if (DEBUG) console.warn('⚠️  Could not load session file:', e);
+  if (DEBUG) console.warn('[warn] Could not load session file:', e);
 }
 
 function log(msg: string, data?: any) {
@@ -68,12 +68,136 @@ function handleError(err: unknown, requestId: string) {
   );
 }
 
+function pickStringField(
+  record: Record<string, unknown>,
+  keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function normalizeAeonCompletionBody(
+  rawBody: unknown
+): CreateChatCompletionData['body'] {
+  const record =
+    rawBody && typeof rawBody === 'object' && !Array.isArray(rawBody)
+      ? (rawBody as Record<string, unknown>)
+      : {};
+
+  if (Array.isArray(record['messages'])) {
+    return record as unknown as CreateChatCompletionData['body'];
+  }
+
+  const prompt = pickStringField(record, ['prompt', 'input', 'text', 'query']);
+  const instructions = pickStringField(record, ['instructions', 'system']);
+  const model = pickStringField(record, ['model']) ?? 'auto';
+
+  const contentParts: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' } }
+  > = [];
+
+  if (prompt) {
+    contentParts.push({ type: 'text', text: prompt });
+  }
+
+  const attachmentCandidates: unknown[] = [];
+  const attachments = record['attachments'];
+  if (Array.isArray(attachments)) {
+    attachmentCandidates.push(...attachments);
+  }
+  const images = record['images'];
+  if (Array.isArray(images)) {
+    attachmentCandidates.push(
+      ...images.map((url) => ({
+        type: 'image',
+        url,
+      }))
+    );
+  }
+
+  for (const candidate of attachmentCandidates) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+    const attachment = candidate as Record<string, unknown>;
+    const type =
+      typeof attachment['type'] === 'string'
+        ? attachment['type'].toLowerCase()
+        : '';
+    const directUrl =
+      typeof attachment['url'] === 'string'
+        ? attachment['url']
+        : typeof attachment['imageUrl'] === 'string'
+        ? attachment['imageUrl']
+        : null;
+    const nestedImageUrl =
+      attachment['image_url'] &&
+      typeof attachment['image_url'] === 'object' &&
+      !Array.isArray(attachment['image_url']) &&
+      typeof (attachment['image_url'] as Record<string, unknown>)['url'] ===
+        'string'
+        ? ((attachment['image_url'] as Record<string, unknown>)[
+            'url'
+          ] as string)
+        : null;
+    const url = (directUrl ?? nestedImageUrl)?.trim();
+    if (!url) {
+      continue;
+    }
+    if (
+      type === '' ||
+      type === 'image' ||
+      type === 'image_url' ||
+      type === 'camera'
+    ) {
+      contentParts.push({
+        type: 'image_url',
+        image_url: {
+          url,
+          detail: 'high',
+        },
+      });
+    }
+  }
+
+  if (contentParts.length === 0) {
+    contentParts.push({ type: 'text', text: '' });
+  }
+
+  const messages: Array<Record<string, unknown>> = [];
+  if (instructions) {
+    messages.push({
+      role: 'system',
+      content: instructions,
+    });
+  }
+  messages.push({
+    role: 'user',
+    content:
+      contentParts.length === 1 && contentParts[0]?.type === 'text'
+        ? contentParts[0].text
+        : contentParts,
+  });
+
+  return {
+    ...record,
+    model,
+    messages,
+  } as unknown as CreateChatCompletionData['body'];
+}
+
 export async function handleProxyRequest(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const requestId = crypto.randomUUID().slice(0, 8);
   const method = req.method;
 
-  if (DEBUG) log(`🔹 INCOMING [${requestId}]: ${method} ${url.pathname}`);
+  if (DEBUG) log(`[incoming] [${requestId}] ${method} ${url.pathname}`);
 
   try {
     // Extract headers (Authorization + X-Headers)
@@ -94,7 +218,7 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
       sessionToken
     ) {
       headers['Authorization'] = `Bearer ${sessionToken}`;
-      if (DEBUG) log(`🔑 Injected session token`);
+      if (DEBUG) log(`[auth] Injected session token`);
     }
 
     // CLONE REQUEST BODY for logging (since it can only be read once)
@@ -104,33 +228,41 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
         bodyCopy = await req.clone().json();
         const preview = JSON.stringify(bodyCopy).slice(0, 200);
         log(
-          `📦 Body [${requestId}]:`,
+          `[body] [${requestId}]`,
           preview + (preview.length >= 200 ? '...' : '')
         );
       } catch {}
     }
 
-    // OPENAI COMPATIBILITY: POST /v1/chat/completions (Typed SDK)
-    if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
+    // OPENAI/AEON COMPATIBILITY: POST /v1/chat/completions | /v1/aeon/completions
+    if (
+      req.method === 'POST' &&
+      (url.pathname === '/v1/chat/completions' ||
+        url.pathname === '/v1/aeon/completions')
+    ) {
       try {
         // Use the cloned body if we read it, otherwise read from req
-        const body = bodyCopy || (await req.json());
+        const rawBody = bodyCopy || (await req.json());
+        const body =
+          url.pathname === '/v1/aeon/completions'
+            ? normalizeAeonCompletionBody(rawBody)
+            : (rawBody as CreateChatCompletionData['body']);
 
         // Use the generated SDK client
         const response = await createChatCompletion({
-          body: body as CreateChatCompletionData['body'],
+          body,
           headers,
         });
 
         if (response.error) {
-          log(`❌ ERROR [${requestId}]:`, response.error);
+          log(`[error] [${requestId}]`, response.error);
           return new Response(JSON.stringify(response.error), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
           });
         }
 
-        log(`✅ SUCCESS [${requestId}]`);
+        log(`[success] [${requestId}]`);
         // Return generic response
         return new Response(JSON.stringify(response.data), {
           headers: { 'Content-Type': 'application/json' },
@@ -254,14 +386,14 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
         });
 
         if (response.error) {
-          log(`❌ ERROR [${requestId}] /api/chat:`, response.error);
+          log(`[error] [${requestId}] /api/chat`, response.error);
           return new Response(JSON.stringify(response.error), {
             status: 500,
             headers: { 'Content-Type': 'application/json' },
           });
         }
 
-        log(`✅ SUCCESS [${requestId}] /api/chat (via OpenAI layer)`);
+        log(`[success] [${requestId}] /api/chat (via OpenAI layer)`);
         return new Response(JSON.stringify(response.data), {
           headers: {
             'Content-Type': 'application/json',
@@ -362,12 +494,11 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
         init.body = bodyCopy ? JSON.stringify(bodyCopy) : await req.blob();
       }
 
-      if (DEBUG) log(`➡️  Forwarding to: ${targetUrl.toString()}`);
+      if (DEBUG) log(`[forward] ${targetUrl.toString()}`);
 
       const response = await fetch(targetUrl.toString(), init);
 
-      if (DEBUG)
-        log(`⬅️  Gateway responded: ${response.status} ${response.statusText}`);
+      if (DEBUG) log(`[gateway] ${response.status} ${response.statusText}`);
 
       // Stream response back
       return new Response(response.body, {

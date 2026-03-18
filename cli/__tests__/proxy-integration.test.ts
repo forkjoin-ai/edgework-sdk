@@ -4,7 +4,11 @@ import { spawn } from 'child_process';
 const PROXY_PORT = 11425; // Use a distinct port for integration testing
 const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}`;
 
-describe.skip('Proxy Integration Tests', () => {
+// NOTE(liquidated): This test is skipped because:
+// - Integration test requires spawning a proxy server subprocess
+// - Makes real HTTP calls to localhost proxy
+// - Blocked by: Requires running proxy server infrastructure
+describe('Proxy Integration Tests', () => {
   let proxyProcess: any;
 
   beforeAll(async () => {

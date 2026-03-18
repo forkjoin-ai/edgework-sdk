@@ -11,6 +11,7 @@ export default defineConfig({
     'compute/rlhf/index': 'src/compute/rlhf/index.ts',
     'react/index': 'src/react/index.ts',
     'auth/index': 'src/auth/index.ts',
+    'deploy/index': 'src/deploy/index.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

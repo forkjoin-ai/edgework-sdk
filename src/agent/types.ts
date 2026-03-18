@@ -107,6 +107,8 @@ export interface AgentManagerOptions {
   configPath?: string;
   walletAddress?: string;
   gatewayName?: string;
+  /** API key for gateway auth (falls back to EDGEWORK_API_KEY env var) */
+  apiKey?: string;
   cpuAllocation?: number;
   memoryMB?: number;
   enableTokenSpending?: boolean;
@@ -120,6 +122,8 @@ export interface GatewayConnectorOptions {
   walletAddress: string;
   provider?: string;
   registryAddress?: string;
+  /** API key for relayer auth (falls back to EDGEWORK_API_KEY env var) */
+  apiKey?: string;
   chainId?: number;
   gasLimit?: number;
   gasPrice?: number;
@@ -127,6 +131,8 @@ export interface GatewayConnectorOptions {
 
 export interface ComputeNodeOptions {
   gatewayUrl: string;
+  /** API key for gateway auth (falls back to EDGEWORK_API_KEY env var) */
+  apiKey?: string;
   cpuAllocation: number;
   memoryMB: number;
   maxTaskDuration: number;

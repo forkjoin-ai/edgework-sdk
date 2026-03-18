@@ -54,7 +54,7 @@ function toEventTopics(topics: readonly string[]): EventTopics {
  * AFFECT token contract address (Optimism Sepolia)
  */
 export const AFFECT_TOKEN_ADDRESS =
-  '0x228Cf170f4fB17a62Ac88f8B6cF0c00e260150f6';
+  '0xe0cfDeeB9BA7e52f5CA6a9975b7e1a3633eFC815';
 
 /**
  * AFFECT token burn receipt with transaction details

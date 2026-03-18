@@ -185,8 +185,19 @@ async function instantiateWasm(wasmBytes: ArrayBuffer): Promise<WasmModule> {
     },
   };
 
-  // Compile and instantiate
-  const { instance } = await WebAssembly.instantiate(wasmBytes, importObject);
+  // Compile and instantiate. TS lib definitions differ across targets:
+  // instantiate() may resolve to an Instance or a { module, instance } pair.
+  type WasmInstantiateResult =
+    | WebAssembly.Instance
+    | WebAssembly.WebAssemblyInstantiatedSource;
+  const instantiateResult = (await WebAssembly.instantiate(
+    wasmBytes,
+    importObject
+  )) as WasmInstantiateResult;
+  const instance =
+    instantiateResult instanceof WebAssembly.Instance
+      ? instantiateResult
+      : instantiateResult.instance;
 
   // The actual module interface is wrapped by wasm-bindgen glue code
   // This is a simplified version - in production, use wasm-bindgen's generated loader
