@@ -1,5 +1,5 @@
 {
-  "name": "@affectively/edgework-sdk",
+  "name": "@a0n/edgework-sdk",
   "version": "5.0.0",
   "description": "Client-side AI inference SDK with D1/Dash storage, WebGPU inference, and on-device RLHF",
   "main": "dist/index.js",
@@ -138,7 +138,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "bun run build:prep && bun run build:js && bun run build:dts",
+    "build:prep": "rm -rf dist",
+    "build:js": "tsup",
+    "build:dts": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "tsup --watch",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit",
     "test": "bun test",

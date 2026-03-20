@@ -3,6 +3,7 @@
  * Supports chunked processing with incremental statistical analysis
  */
 
+import { createReadStream } from 'node:fs';
 import { Readable, Transform, Writable } from 'stream';
 import { StatisticalContext } from '../common-types';
 import { StatisticalAnalyzer } from '../statistical/analyzer';
@@ -338,8 +339,7 @@ export class StreamProcessor {
     }
 
     // Create stream from file path
-    const fs = require('fs');
-    return fs.createReadStream(source, { encoding: 'utf8' });
+    return createReadStream(source, { encoding: 'utf8' });
   }
 
   /**

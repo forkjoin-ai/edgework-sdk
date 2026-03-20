@@ -6,8 +6,8 @@
  */
 
 import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
+
+import ora from '@emotions-app/shared-utils/cli/spinner';
 import { readFileSync } from 'fs';
 import { InputDetector } from '../src/transformations/query/detector';
 import {
@@ -164,7 +164,7 @@ program
       await executeQuery(args, options);
     } catch (error) {
       console.error(
-        chalk.red('Error:'),
+        `\x1b[31mError:\x1b[0m`,
         error instanceof Error ? error.message : String(error)
       );
       process.exit(1);
@@ -180,7 +180,7 @@ async function executeQuery(args: string[], options: any): Promise<void> {
   // Handle production commands first
   if (options.healthCheck) {
     const health = monitoring.healthCheck();
-    console.log(chalk.blue('System Health:'));
+    console.log(`\x1b[34mSystem Health:\x1b[0m`);
     console.log(`Status: ${health.status}`);
     console.log(`Uptime: ${(health.uptime / 1000).toFixed(0)}s`);
     console.log(`Version: ${health.version}`);
@@ -193,14 +193,14 @@ async function executeQuery(args: string[], options: any): Promise<void> {
 
   if (options.metrics) {
     const metrics = monitoring.getMetrics();
-    console.log(chalk.blue('System Metrics:'));
+    console.log(`\x1b[34mSystem Metrics:\x1b[0m`);
     console.log(JSON.stringify(metrics, null, 2));
     return;
   }
 
   if (options.logs) {
     const logs = monitoring.getLogs({ limit: 50 });
-    console.log(chalk.blue('Recent Logs:'));
+    console.log(`\x1b[34mRecent Logs:\x1b[0m`);
     logs.forEach((log) => {
       const timestamp = log.timestamp.toISOString();
       const level = log.level.toUpperCase().padEnd(5);
@@ -211,7 +211,7 @@ async function executeQuery(args: string[], options: any): Promise<void> {
 
   if (options.alerts) {
     const alerts = monitoring.getAlerts();
-    console.log(chalk.blue('Active Alerts:'));
+    console.log(`\x1b[34mActive Alerts:\x1b[0m`);
     if (alerts.length === 0) {
       console.log('No active alerts');
     } else {
@@ -249,10 +249,10 @@ async function executeQuery(args: string[], options: any): Promise<void> {
       const authResult = await authManager.authenticate(options.authKey);
       if (!authResult.success) {
         spinner.fail('Authentication failed');
-        console.error(chalk.red('Auth Error:'), authResult.error);
+        console.error(`\x1b[31mAuth Error:\x1b[0m`, authResult.error);
         if (authResult.rateLimitStatus) {
           console.error(
-            chalk.yellow('Rate Limit:'),
+            `\x1b[33mRate Limit:\x1b[0m`,
             `Resets at ${authResult.rateLimitStatus.resetTime.toISOString()}`
           );
         }
@@ -291,21 +291,17 @@ async function executeQuery(args: string[], options: any): Promise<void> {
     const mode = InputDetector.getTransformationMode(detection, options.mode);
 
     console.log(
-      chalk.blue(
-        `Detected: ${detection.type} (confidence: ${(
-          detection.confidence * 100
-        ).toFixed(1)}%)`
-      )
+      `\x1b[34mDetected: ${detection.type} (confidence: ${(
+        detection.confidence * 100
+      ).toFixed(1)}%)\x1b[0m`
     );
-    console.log(chalk.blue(`Mode: ${mode.toUpperCase()}`));
+    console.log(`\x1b[34mMode: ${mode.toUpperCase()}\x1b[0m`);
 
     // Analyze input characteristics
     const characteristics =
       InputDetector.analyzeInputCharacteristics(inputData);
     console.log(
-      chalk.gray(
-        `Input: ${characteristics.lines} lines, ${characteristics.length} chars`
-      )
+      `\x1b[90mInput: ${characteristics.lines} lines, ${characteristics.length} chars\x1b[0m`
     );
 
     // Parse data for analysis
@@ -330,7 +326,7 @@ async function executeQuery(args: string[], options: any): Promise<void> {
       const cachedResult = globalCache.get(cacheKey);
       if (cachedResult) {
         spinner.succeed('Retrieved from cache');
-        console.log(chalk.green('✓ Using cached result'));
+        console.log(`\x1b[32m✓ Using cached result\x1b[0m`);
         const output = formatOutput(cachedResult, options.format || 'markdown');
         console.log(output);
 
@@ -458,7 +454,7 @@ async function executeQuery(args: string[], options: any): Promise<void> {
       }
     } else {
       spinner.fail('Transformation failed');
-      console.error(chalk.red('Error:'), result.error);
+      console.error(`\x1b[31mError:\x1b[0m`, result.error);
 
       if (options.enableMonitoring) {
         monitoring.recordError(
@@ -881,12 +877,12 @@ async function handleStreaming(
     );
 
     spinner.succeed('Streaming complete');
-    console.log(chalk.green(`✓ Processed ${result.totalChunks} chunks`));
-    console.log(chalk.green(`✓ Total records: ${result.totalRecords}`));
-    console.log(chalk.green(`✓ Processing time: ${result.totalTime}ms`));
+    console.log(`\x1b[32m✓ Processed ${result.totalChunks} chunks\x1b[0m`);
+    console.log(`\x1b[32m✓ Total records: ${result.totalRecords}\x1b[0m`);
+    console.log(`\x1b[32m✓ Processing time: ${result.totalTime}ms\x1b[0m`);
 
     if (result.incrementalStats) {
-      console.log(chalk.blue('Incremental Statistics:'));
+      console.log(`\x1b[34mIncremental Statistics:\x1b[0m`);
       console.log(JSON.stringify(result.incrementalStats, null, 2));
     }
 
@@ -998,7 +994,7 @@ function calculateDataQualityGrade(statisticalContext: any): string {
 function showPerformanceMetrics(): void {
   const cacheStats = globalCache.getStats();
 
-  console.log(chalk.blue('\n[PERFORMANCE] Performance Metrics:'));
+  console.log(`\x1b[34m\n[PERFORMANCE] Performance Metrics:\x1b[0m`);
   console.log(`Cache Hit Rate: ${(cacheStats.hitRate * 100).toFixed(1)}%`);
   console.log(`Cache Entries: ${cacheStats.entryCount}`);
   console.log(

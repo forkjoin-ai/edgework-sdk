@@ -1034,7 +1034,7 @@ function buildMcpServerScaffoldFiles(
       deploy: 'aeon deploy',
     },
     dependencies: {
-      '@affectively/edgework-sdk': 'workspace:*',
+      '@a0n/edgework-sdk': 'workspace:*',
       '@affectively/mcp-framework': 'workspace:*',
       '@modelcontextprotocol/sdk': '^1.4.1',
       zod: '^3.23.0',

@@ -24,6 +24,7 @@ export const PORT = parseInt(process.env.PORT || '11420', 10);
 export const HOST = process.env.HOST || '127.0.0.1';
 export const DEBUG =
   process.env.DEBUG === 'true' || process.argv.includes('--debug');
+const MODEL_LIST_TIMEOUT_MS = 2_500;
 
 // Load Session
 const CONFIG_DIR = process.env.HOME
@@ -66,6 +67,19 @@ function handleError(err: unknown, requestId: string) {
     }),
     { status: 500, headers: { 'Content-Type': 'application/json' } }
   );
+}
+
+function timedGatewayFetch(request: Request | URL | string): Promise<Response> {
+  return fetch(request, {
+    signal: AbortSignal.timeout(MODEL_LIST_TIMEOUT_MS),
+  });
+}
+
+function listModelsWithTimeout(headers: Record<string, string>) {
+  return listModels({
+    headers,
+    fetch: timedGatewayFetch,
+  });
 }
 
 function pickStringField(
@@ -298,7 +312,7 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
     // OPENAI COMPATIBILITY: GET /v1/models (Typed SDK)
     if (req.method === 'GET' && url.pathname === '/v1/models') {
       try {
-        const response = await listModels({ headers });
+        const response = await listModelsWithTimeout(headers);
         if (response.error) {
           return new Response(JSON.stringify(response.error), {
             status: 500,
@@ -340,7 +354,7 @@ export async function handleProxyRequest(req: Request): Promise<Response> {
     // OLLAMA COMPATIBILITY: GET /api/tags (List Models)
     if (req.method === 'GET' && url.pathname === '/api/tags') {
       try {
-        const response = await listModels({ headers });
+        const response = await listModelsWithTimeout(headers);
         if (response.error) {
           return new Response(JSON.stringify(response.error), {
             status: 500,

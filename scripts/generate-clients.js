@@ -38,6 +38,7 @@ for (const dir of dirsToClean) {
     try {
       // Recursive delete. Requires Node 14.14+
       // @ts-expect-error -- require is not typed in Bun script context without specific types
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const fs = require('fs');
       fs.rmSync(dir, { recursive: true, force: true });
     } catch (e) {

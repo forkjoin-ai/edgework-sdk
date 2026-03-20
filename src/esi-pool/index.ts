@@ -3,7 +3,7 @@
  *
  * @example
  * ```tsx
- * import { ESIPool } from '@affectively/edgework-sdk/esi-pool';
+ * import { ESIPool } from '@a0n/edgework-sdk/esi-pool';
  *
  * <ESIPool maxCpuPercent={10} maxMemoryMB={50} onTokenEarned={(n) => console.log(n)}>
  *   <App />

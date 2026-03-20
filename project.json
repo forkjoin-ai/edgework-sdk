@@ -1,41 +1,63 @@
 {
   "name": "edgework-sdk",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/edgework-sdk/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:lib"],
   "targets": {
     "build": {
-      "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "executor": "a0:run-commands",
+      "dependsOn": ["build:prep", "build:js", "build:dts"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "build:prep": {
+      "executor": "a0:run-commands",
       "options": {
         "cwd": "packages/edgework-sdk",
-        "command": "bun run build"
+        "command": "bun run build:prep"
+      }
+    },
+    "build:js": {
+      "executor": "a0:run-commands",
+      "dependsOn": ["build:prep"],
+      "options": {
+        "cwd": "packages/edgework-sdk",
+        "command": "bun run build:js"
+      }
+    },
+    "build:dts": {
+      "executor": "a0:run-commands",
+      "dependsOn": ["build:prep"],
+      "options": {
+        "cwd": "packages/edgework-sdk",
+        "command": "bun run build:dts"
       }
     },
     "typecheck": {
-      "executor": "nx:run-commands",
+      "executor": "a0:run-commands",
+      "dependsOn": ["build:dts"],
       "options": {
         "cwd": "packages/edgework-sdk",
         "command": "bun run typecheck"
       }
     },
     "test": {
-      "executor": "nx:run-commands",
+      "executor": "a0:run-commands",
       "options": {
         "cwd": "packages/edgework-sdk",
-        "command": "bun ../../scripts/bun-isolated-runner.ts . --preload ../../bun.preload.ts"
+        "command": "gnode run ../../scripts/aeon-test.ts . --preload ../../bun.preload.ts"
       }
     },
     "lint": {
-      "executor": "nx:run-commands",
+      "executor": "a0:eslint",
       "options": {
-        "cwd": "packages/edgework-sdk",
-        "command": "bunx eslint src --ext .ts,.tsx --ignore-pattern \"**/*.gen.ts\""
+        "lintFilePatterns": [
+          "packages/edgework-sdk/src/**/*.{ts,tsx}",
+          "!packages/edgework-sdk/src/**/*.gen.ts"
+        ]
       }
     },
     "dev": {
-      "executor": "nx:run-commands",
+      "executor": "a0:run-commands",
       "options": {
         "cwd": "packages/edgework-sdk",
         "command": "bun run dev"

@@ -2,7 +2,16 @@
  * Wallet Manager - Handles local key generation and encrypted storage
  */
 
-import { randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+} from 'node:crypto';
+import { access, mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { arch, hostname, platform } from 'node:os';
+import { dirname } from 'node:path';
 import type { WalletConfig } from './types';
 
 export interface WalletManagerOptions {
@@ -55,36 +64,28 @@ export class WalletManager {
    * Uses hostname, OS, and hardware fingerprint
    */
   private deriveDeviceKey(): string {
-    const crypto = require('crypto');
-    const os = require('os');
-
     const components = [
-      os.hostname(),
+      hostname(),
       process.env.USER || process.env.USERNAME || 'system',
-      os.platform(),
-      os.arch(),
+      platform(),
+      arch(),
     ].join('|');
 
-    return crypto.createHash('sha256').update(components).digest('hex');
+    return createHash('sha256').update(components).digest('hex');
   }
 
   /**
    * Generate a new Ethereum wallet (secp256k1)
    */
   async generateWallet(): Promise<WalletConfig> {
-    const crypto = require('crypto');
-
     // Generate random private key
-    const privateKey = crypto.randomBytes(32);
+    const privateKey = randomBytes(32);
 
     // Compute address from private key using simple keccak256 approach
     // Implementation note: , would use proper secp256k1 library
     // Current behavior: create a consistent address from the key
     const keyHex = privateKey.toString('hex');
-    const addressHash = crypto
-      .createHash('sha256')
-      .update(keyHex)
-      .digest('hex');
+    const addressHash = createHash('sha256').update(keyHex).digest('hex');
 
     // Take first 20 bytes (40 chars) as ethereum-like address
     const address = '0x' + addressHash.substring(0, 40);
@@ -108,20 +109,16 @@ export class WalletManager {
       throw new Error('No wallet loaded or created');
     }
 
-    const crypto = require('crypto');
-    const fs = require('fs').promises;
-    const path = require('path');
-
     // Ensure config directory exists
-    const dir = path.dirname(this.keyPath);
-    await fs.mkdir(dir, { recursive: true });
+    const dir = dirname(this.keyPath);
+    await mkdir(dir, { recursive: true });
 
     // Encrypt private key with device key
     // Ensure key is 32 bytes (sha256 hex is 64 chars -> 32 bytes)
     const key = Buffer.from(this.encryptionKey, 'hex');
-    const iv = crypto.randomBytes(16);
+    const iv = randomBytes(16);
 
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    const cipher = createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(this.wallet.privateKey, 'utf8', 'hex');
     encrypted += cipher.final('hex');
 
@@ -138,7 +135,7 @@ export class WalletManager {
     );
 
     // Write with restricted permissions (owner read/write only)
-    await fs.writeFile(this.keyPath, data, {
+    await writeFile(this.keyPath, data, {
       mode: 0o600,
       flag: 'w',
     });
@@ -148,11 +145,8 @@ export class WalletManager {
    * Load wallet from local storage
    */
   async loadWallet(): Promise<WalletConfig | null> {
-    const fs = require('fs').promises;
-    const crypto = require('crypto');
-
     try {
-      const data = await fs.readFile(this.keyPath, 'utf8');
+      const data = await readFile(this.keyPath, 'utf8');
       const stored = JSON.parse(data);
 
       // Decrypt private key with device key
@@ -164,7 +158,7 @@ export class WalletManager {
       }
 
       const iv = Buffer.from(stored.iv, 'hex');
-      const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+      const decipher = createDecipheriv('aes-256-cbc', key, iv);
 
       let decrypted = decipher.update(stored.encryptedKey, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
@@ -186,10 +180,8 @@ export class WalletManager {
    * Check if wallet exists
    */
   async walletExists(): Promise<boolean> {
-    const fs = require('fs').promises;
-
     try {
-      await fs.access(this.keyPath);
+      await access(this.keyPath);
       return true;
     } catch {
       return false;
@@ -204,11 +196,9 @@ export class WalletManager {
       throw new Error('No wallet loaded');
     }
 
-    const crypto = require('crypto');
-
     // Create HMAC signature as placeholder
     // Implementation note: , would use secp256k1 signing
-    const hmac = crypto.createHmac('sha256', this.wallet.privateKey);
+    const hmac = createHmac('sha256', this.wallet.privateKey);
     hmac.update(message);
     const signature = '0x' + hmac.digest('hex');
 
@@ -219,10 +209,8 @@ export class WalletManager {
    * Delete wallet (security feature)
    */
   async deleteWallet(): Promise<void> {
-    const fs = require('fs').promises;
-
     try {
-      await fs.unlink(this.keyPath);
+      await unlink(this.keyPath);
       this.wallet = null;
     } catch {
       // File doesn't exist, ignore

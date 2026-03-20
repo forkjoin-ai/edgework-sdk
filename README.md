@@ -30,6 +30,10 @@ function App() {
 }
 ```
 
+## Build Surface
+
+Monorepo builds split this package into `build:prep`, `build:js`, and `build:dts` so `a0` can schedule JS bundling and declaration emission as sibling lanes instead of hiding both phases inside one opaque `tsup` invocation. The declaration lane uses a package-local shim surface for external type-only imports, which keeps DTS emission out of the workspace reference lattice.
+
 ## Quality Autopilot
 
 Run one command to lint common production routes/assets (`/terms`, `/privacy`, `/sitemap.xml`, `/robots.txt`, `/.well-known/*`, favicons, manifests) and optionally smoke-test deployed process URLs.

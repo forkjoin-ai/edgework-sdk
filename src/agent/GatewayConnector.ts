@@ -64,6 +64,10 @@ export class GatewayConnector {
     this.logger = this.createLogger();
   }
 
+  private async loadEthers(): Promise<typeof import('ethers')> {
+    return import('ethers');
+  }
+
   private createLogger() {
     return {
       debug: (msg: string, data?: any) =>
@@ -82,8 +86,7 @@ export class GatewayConnector {
    */
   async connect(): Promise<void> {
     try {
-      // when motivation is low-load ethers.js
-      const ethers = require('ethers');
+      const ethers = await this.loadEthers();
 
       // Create provider
       this.web3Provider = new ethers.JsonRpcProvider(
@@ -152,7 +155,7 @@ export class GatewayConnector {
         );
       }
 
-      const ethers = require('ethers');
+      const ethers = await this.loadEthers();
 
       // Create signer
       const signer = new ethers.Wallet(wallet.privateKey, this.web3Provider);
@@ -279,7 +282,7 @@ export class GatewayConnector {
         throw new Error('Wallet not loaded');
       }
 
-      const ethers = require('ethers');
+      const ethers = await this.loadEthers();
       const signer = new ethers.Wallet(wallet.privateKey, this.web3Provider);
 
       const contractWithSigner = this.contract.connect(signer);
@@ -309,7 +312,7 @@ export class GatewayConnector {
         throw new Error('Wallet not loaded');
       }
 
-      const ethers = require('ethers');
+      const ethers = await this.loadEthers();
       const signer = new ethers.Wallet(wallet.privateKey, this.web3Provider);
 
       // Note: This assumes a deregister function exists
@@ -344,7 +347,7 @@ export class GatewayConnector {
         throw new Error('Wallet not found for signing');
       }
 
-      const ethers = require('ethers');
+      const ethers = await this.loadEthers();
       const signer = new ethers.Wallet(wallet.privateKey); // No provider needed for signing
 
       // Prepare metadata

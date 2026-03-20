@@ -1,6 +1,25 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test, mock } from 'bun:test';
 
-import {
+// Mock ora spinner (unresolvable in test environment)
+mock.module('@emotions-app/shared-utils/cli/spinner', () => {
+  const spinner = {
+    start: () => spinner,
+    stop: () => spinner,
+    succeed: () => spinner,
+    fail: () => spinner,
+    warn: () => spinner,
+    info: () => spinner,
+    text: '',
+  };
+  return { default: () => spinner };
+});
+
+// Mock edgework API key resolver (may have unresolvable transitive deps)
+mock.module('../src/edgework-api-key', () => ({
+  resolveEdgeworkApiKey: () => 'mock-api-key',
+}));
+
+const {
   evaluateModelReadiness,
   extractFirstGenerationItem,
   getImageModelCandidates,
@@ -11,7 +30,7 @@ import {
   resolveEdgeBaseUrl,
   resolveGenerationBytes,
   stripDataUriPrefix,
-} from '../media';
+} = await import('../media');
 
 describe('media CLI helpers', () => {
   const originalEdgeUrl = process.env.EDGE_URL;
@@ -114,9 +133,9 @@ describe('media CLI helpers', () => {
   });
 
   test('getImageModelCandidates normalizes whitespace', () => {
-    expect(getImageModelCandidates('  stable-diffusion-xl-base-1.0  ')).toEqual([
-      'stable-diffusion-xl-base-1.0',
-    ]);
+    expect(getImageModelCandidates('  stable-diffusion-xl-base-1.0  ')).toEqual(
+      ['stable-diffusion-xl-base-1.0']
+    );
     expect(getImageModelCandidates('  ssd-1b-lcm-int8  ')).toEqual([
       'ssd-1b-lcm-int8',
       'flux-4b',

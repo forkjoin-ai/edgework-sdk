@@ -17,7 +17,9 @@ describe('GnosisClientRuntime', () => {
       {
         id: 'slow',
         run: async () =>
-          new Promise<string>((resolve) => setTimeout(() => resolve('slow'), 20)),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve('slow'), 20)
+          ),
       },
       {
         id: 'fast',
@@ -55,7 +57,7 @@ describe('GnosisClientRuntime', () => {
       });
     });
 
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     try {
       const result = await runtime.fetchJson<{ ok: boolean }>('fetch-node', {
         url: 'https://example.test/data',

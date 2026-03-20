@@ -2,16 +2,26 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "incremental": false,
+    "paths": {
+      "@emotions-app/shared-ui/types/agent-website": ["./dts-shims.d.ts"],
+      "@emotions-app/shared-utils/edge/forgo-logs-types": ["./dts-shims.d.ts"]
+    },
     "noEmit": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/**/*.js", "src/**/*.js.map"],
-  "references": [
-    {
-      "path": "../../shared-utils"
-    },
-    {
-      "path": "../../shared-ui"
-    }
+  "include": ["src/**/*.ts", "src/**/*.tsx", "dts-shims.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.js",
+    "src/**/*.js.map",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**"
   ]
 }

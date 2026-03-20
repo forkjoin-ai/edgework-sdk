@@ -49,8 +49,8 @@ export class AgentManager {
   private tokenSpending: TokenSpendingManager | null = null;
   private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
   private isRunning = false;
-  private statsInterval: NodeJS.Timeout | null = null;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private statsInterval: ReturnType<typeof setInterval> | null = null;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private logger: any;
 
   constructor(options: AgentManagerOptions = {}) {

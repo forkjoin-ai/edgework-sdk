@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
+
+import ora from '@emotions-app/shared-utils/cli/spinner';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -160,7 +160,9 @@ export function stripDataUriPrefix(value: string): string {
   return value.slice(commaIndex + 1);
 }
 
-export function extractFirstGenerationItem(payload: unknown): GenerationItem | null {
+export function extractFirstGenerationItem(
+  payload: unknown
+): GenerationItem | null {
   if (typeof payload !== 'object' || payload === null) {
     return null;
   }
@@ -244,10 +246,7 @@ function formatErrorPayload(payload: unknown, rawBody: string): string {
   return rawBody || 'Unknown API error';
 }
 
-function resolveTimeoutMs(
-  envVarName: string,
-  fallbackMs: number
-): number {
+function resolveTimeoutMs(envVarName: string, fallbackMs: number): number {
   const value = process.env[envVarName];
   if (!value) {
     return fallbackMs;
@@ -304,9 +303,7 @@ async function requestGeneration(
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Request to ${endpoint} failed: ${message}`
-    );
+    throw new Error(`Request to ${endpoint} failed: ${message}`);
   }
 
   const rawBody = await response.text();
@@ -366,8 +363,7 @@ export function evaluateModelReadiness(
       continue;
     }
     const record = item as Record<string, unknown>;
-    const id =
-      typeof record.id === 'string' ? record.id : undefined;
+    const id = typeof record.id === 'string' ? record.id : undefined;
     const resolvedModel =
       typeof record.resolved_model === 'string'
         ? record.resolved_model
@@ -481,10 +477,15 @@ async function ensureVideoModelReady(
   }
 
   if (modelResponse.ok) {
-    const readiness = evaluateModelReadinessFromSingleRecord(modelPayload, model);
+    const readiness = evaluateModelReadinessFromSingleRecord(
+      modelPayload,
+      model
+    );
     if (!readiness.ready) {
       throw new Error(
-        `Video generation unavailable: ${readiness.reason || 'model lane unavailable'}`
+        `Video generation unavailable: ${
+          readiness.reason || 'model lane unavailable'
+        }`
       );
     }
     return;
@@ -493,10 +494,9 @@ async function ensureVideoModelReady(
   // Backward-compatible fallback for older environments that only expose /v1/models.
   if (modelResponse.status !== 404) {
     throw new Error(
-      `Video readiness check failed (${modelResponse.status}): ${formatErrorPayload(
-        modelPayload,
-        modelRawBody
-      )}`
+      `Video readiness check failed (${
+        modelResponse.status
+      }): ${formatErrorPayload(modelPayload, modelRawBody)}`
     );
   }
 
@@ -531,7 +531,9 @@ async function ensureVideoModelReady(
   const readiness = evaluateModelReadiness(payload, model);
   if (!readiness.ready) {
     throw new Error(
-      `Video generation unavailable: ${readiness.reason || 'model lane unavailable'}`
+      `Video generation unavailable: ${
+        readiness.reason || 'model lane unavailable'
+      }`
     );
   }
 }
@@ -544,7 +546,9 @@ function shouldBypassVideoReadinessFailure(message: string): boolean {
   );
 }
 
-export async function resolveGenerationBytes(item: GenerationItem): Promise<Buffer> {
+export async function resolveGenerationBytes(
+  item: GenerationItem
+): Promise<Buffer> {
   if (typeof item.b64Json === 'string' && item.b64Json.length > 0) {
     return Buffer.from(stripDataUriPrefix(item.b64Json), 'base64');
   }
@@ -556,7 +560,9 @@ export async function resolveGenerationBytes(item: GenerationItem): Promise<Buff
 
     const response = await fetch(item.url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch generated asset URL (${response.status})`);
+      throw new Error(
+        `Failed to fetch generated asset URL (${response.status})`
+      );
     }
     const binary = await response.arrayBuffer();
     return Buffer.from(binary);
@@ -735,12 +741,9 @@ function finalizeCorrelationAccumulator(accumulator: {
   }
   const meanA = accumulator.sumA / accumulator.count;
   const meanB = accumulator.sumB / accumulator.count;
-  const cov =
-    accumulator.sumAB / accumulator.count - meanA * meanB;
-  const varA =
-    accumulator.sumAA / accumulator.count - meanA * meanA;
-  const varB =
-    accumulator.sumBB / accumulator.count - meanB * meanB;
+  const cov = accumulator.sumAB / accumulator.count - meanA * meanB;
+  const varA = accumulator.sumAA / accumulator.count - meanA * meanA;
+  const varB = accumulator.sumBB / accumulator.count - meanB * meanB;
   if (varA <= 0 || varB <= 0) {
     return 0;
   }
@@ -756,7 +759,10 @@ export function analyzePngImage(bytes: Buffer): ImageAnalysisMetrics | null {
   const { width, height, grayscale } = decoded;
   const histogram = new Array<number>(256).fill(0);
   for (let index = 0; index < grayscale.length; index += 1) {
-    const bucket = Math.max(0, Math.min(255, Math.round(grayscale[index] ?? 0)));
+    const bucket = Math.max(
+      0,
+      Math.min(255, Math.round(grayscale[index] ?? 0))
+    );
     histogram[bucket] += 1;
   }
 
@@ -820,15 +826,16 @@ export function analyzePngImage(bytes: Buffer): ImageAnalysisMetrics | null {
   };
 }
 
-export function isLikelyStaticNoiseMetrics(metrics: ImageAnalysisMetrics): boolean {
+export function isLikelyStaticNoiseMetrics(
+  metrics: ImageAnalysisMetrics
+): boolean {
   const absCorrX = Math.abs(metrics.correlationX);
   const absCorrY = Math.abs(metrics.correlationY);
 
-  const staticNoise = (
+  const staticNoise =
     metrics.entropy >= STATIC_NOISE_ENTROPY_THRESHOLD &&
     absCorrX >= STATIC_NOISE_CORRELATION_THRESHOLD &&
-    absCorrY >= STATIC_NOISE_CORRELATION_THRESHOLD
-  );
+    absCorrY >= STATIC_NOISE_CORRELATION_THRESHOLD;
 
   // Catch low-detail structured artifacts (banding/blur grids) that are not
   // random static but still clearly degraded and unusable.
@@ -925,10 +932,9 @@ export function getImageModelCandidates(requestedModel: string): string[] {
     normalizedRequested === DEFAULT_IMAGE_MODEL ||
     normalizedRequested === 'auto'
   ) {
-    const ordered = [
-      DEFAULT_IMAGE_MODEL,
-      ...IMAGE_MODEL_FALLBACK_CHAIN,
-    ].map((candidate) => candidate.trim().toLowerCase());
+    const ordered = [DEFAULT_IMAGE_MODEL, ...IMAGE_MODEL_FALLBACK_CHAIN].map(
+      (candidate) => candidate.trim().toLowerCase()
+    );
     return [...new Set(ordered)];
   }
   return [sanitizedRequestedModel];
@@ -941,10 +947,9 @@ export function getVideoModelCandidates(requestedModel: string): string[] {
     normalizedRequested === DEFAULT_VIDEO_MODEL ||
     normalizedRequested === 'auto'
   ) {
-    const ordered = [
-      DEFAULT_VIDEO_MODEL,
-      ...VIDEO_MODEL_FALLBACK_CHAIN,
-    ].map((candidate) => candidate.trim().toLowerCase());
+    const ordered = [DEFAULT_VIDEO_MODEL, ...VIDEO_MODEL_FALLBACK_CHAIN].map(
+      (candidate) => candidate.trim().toLowerCase()
+    );
     return [...new Set(ordered)];
   }
   return [sanitizedRequestedModel];
@@ -956,10 +961,10 @@ function printModelSummary(payload: GenerationPayload): void {
   const model = payload.model || resolved || requested;
 
   if (model) {
-    console.log(chalk.gray(`Model: ${model}`));
+    console.log(`\x1b[90mModel: ${model}\x1b[0m`);
   }
   if (requested && resolved && requested !== resolved) {
-    console.log(chalk.gray(`Alias: ${requested} -> ${resolved}`));
+    console.log(`\x1b[90mAlias: ${requested} -> ${resolved}\x1b[0m`);
   }
 }
 
@@ -1093,7 +1098,8 @@ async function runVideoCommand(
         try {
           await ensureVideoModelReady(baseUrl, headers, modelCandidate);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           if (shouldBypassVideoReadinessFailure(message)) {
             spinner.info(
               `Readiness gate rejected '${modelCandidate}'; probing video endpoint directly`
@@ -1224,7 +1230,11 @@ program
   .requiredOption('--prompt <text>', 'Prompt to generate image from')
   .option('--model <model>', 'Image model ID', DEFAULT_IMAGE_MODEL)
   .option('--size <size>', 'Image size', '512x512')
-  .option('--response-format <format>', 'Response format: b64_json|url', 'b64_json')
+  .option(
+    '--response-format <format>',
+    'Response format: b64_json|url',
+    'b64_json'
+  )
   .option('--negative-prompt <text>', 'Negative prompt')
   .option('--seed <number>', 'Deterministic seed', (value) =>
     parseIntegerOptionValue(value, '--seed')
@@ -1252,7 +1262,11 @@ program
   .requiredOption('--prompt <text>', 'Prompt to generate video from')
   .option('--model <model>', 'Video model ID', DEFAULT_VIDEO_MODEL)
   .option('--size <size>', 'Video size', '256x256')
-  .option('--response-format <format>', 'Response format: b64_json|url', 'b64_json')
+  .option(
+    '--response-format <format>',
+    'Response format: b64_json|url',
+    'b64_json'
+  )
   .option('--negative-prompt <text>', 'Negative prompt')
   .option('--seed <number>', 'Deterministic seed', (value) =>
     parseIntegerOptionValue(value, '--seed')
@@ -1272,7 +1286,10 @@ program
   .option('--height <number>', 'Override height', (value) =>
     parseIntegerOptionValue(value, '--height')
   )
-  .option('--image-url <url>', 'Optional image URL for image-to-video generation')
+  .option(
+    '--image-url <url>',
+    'Optional image URL for image-to-video generation'
+  )
   .option(
     '--edge-url <url>',
     'Edge API base URL (default: EDGE_URL env or https://edge.affectively.ai)'
@@ -1293,7 +1310,7 @@ program
 if (import.meta.main) {
   program.parseAsync(process.argv).catch((error: unknown) => {
     console.error(
-      chalk.red('Media generation failed:'),
+      `\x1b[31mMedia generation failed:\x1b[0m`,
       error instanceof Error ? error.message : String(error)
     );
     process.exit(1);

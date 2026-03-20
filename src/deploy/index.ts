@@ -2,10 +2,12 @@
  * Aeon Deploy — Dead simple deployment for Aeon Flux apps
  *
  * Usage:
- *   import { deploy, getStatus, stop, start } from '@affectively/edgework-sdk/deploy';
+ *   import { deploy, getStatus, stop, start } from '@a0n/edgework-sdk/deploy';
  *   const result = await deploy({ appDir: './my-site', name: 'halos-agency', ... });
  */
 
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve as resolvePath } from 'node:path';
 import type {
   AeonConfig,
   CloneOptions,
@@ -1270,9 +1272,6 @@ function siteHostForEnv(
 }
 
 function registerReadPackageVersion(appDir: string): string {
-  const { existsSync, readFileSync } =
-    require('node:fs') as typeof import('node:fs');
-  const { join } = require('node:path') as typeof import('node:path');
   const packageJsonPath = join(appDir, 'package.json');
   if (!existsSync(packageJsonPath)) {
     return '0.0.0';
@@ -1290,10 +1289,6 @@ function ensureDistEnvelope(
   env: 'dev' | 'staging' | 'production',
   siteHost: string
 ): void {
-  const { mkdirSync, writeFileSync } =
-    require('node:fs') as typeof import('node:fs');
-  const { join } = require('node:path') as typeof import('node:path');
-
   const distDir = join(appDir, 'dist');
   mkdirSync(distDir, { recursive: true });
 
@@ -1359,9 +1354,6 @@ function registerSleepMs(ms: number): Promise<void> {
 export async function registerAeonPid(
   config: RegisterAeonPidConfig
 ): Promise<RegisterAeonPidResult> {
-  const { existsSync } = require('node:fs') as typeof import('node:fs');
-  const { join, resolve } = require('node:path') as typeof import('node:path');
-
   const env = config.env || 'production';
   const gatewayUrl = config.gatewayUrl || DEFAULT_GATEWAY;
   const ownerDid =
@@ -1377,7 +1369,7 @@ export async function registerAeonPid(
   // then try repo-root/apps/<name>
   let appDir: string;
   if (config.appDir) {
-    appDir = resolve(config.appDir);
+    appDir = resolvePath(config.appDir);
   } else {
     const cwd = process.cwd();
     const cwdAppsPath = join(cwd, 'apps', config.appName);

@@ -114,15 +114,18 @@ export class A2AClient {
 
     return this.runtime.process(`send-task:${task}`, async () => {
       try {
-        return await this.runtime.fetchJson<A2AResponse>(`send-task:${task}:fetch`, {
-          url: `${target.endpoint}/a2a/task`,
-          timeoutMs: options?.timeoutMs,
-          init: {
-            method: 'POST',
-            body: JSON.stringify(message),
-          },
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return await this.runtime.fetchJson<A2AResponse>(
+          `send-task:${task}:fetch`,
+          {
+            url: `${target.endpoint}/a2a/task`,
+            timeoutMs: options?.timeoutMs,
+            init: {
+              method: 'POST',
+              body: JSON.stringify(message),
+            },
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       } catch (error) {
         this.runtime.vent(`send-task:${task}:failed`, {
           reason: error instanceof Error ? error.message : String(error),
