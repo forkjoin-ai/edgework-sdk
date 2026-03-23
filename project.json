@@ -44,7 +44,7 @@
       "executor": "a0:run-commands",
       "options": {
         "cwd": "packages/edgework-sdk",
-        "command": "gnode run ../../scripts/aeon-test.ts . --preload ../../bun.preload.ts"
+        "command": "bun ../../scripts/aeon-test.ts . --preload ../../bun.preload.ts"
       }
     },
     "lint": {

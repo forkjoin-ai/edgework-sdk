@@ -83,6 +83,26 @@ export interface DeviceCapabilities {
   computeScore: number;
 }
 
+interface WebGpuAdapterWithLimits {
+  limits: {
+    maxBufferSize: number;
+    maxStorageBufferBindingSize: number;
+    maxComputeWorkgroupSizeX: number;
+  };
+}
+
+type NavigatorWithWebGpu = {
+  gpu?: {
+    requestAdapter(): Promise<WebGpuAdapterWithLimits | null>;
+  };
+};
+
+function getNavigatorWebGpu(): NavigatorWithWebGpu['gpu'] {
+  return typeof navigator === 'undefined'
+    ? undefined
+    : (navigator as NavigatorWithWebGpu).gpu;
+}
+
 /**
  * Network experiences
  */
@@ -400,9 +420,10 @@ export class ModelRouter {
     }
 
     // Check WebGPU
-    if ('gpu' in navigator) {
+    const gpu = getNavigatorWebGpu();
+    if (gpu) {
       try {
-        const adapter = await navigator.gpu.requestAdapter();
+        const adapter = await gpu.requestAdapter();
         if (adapter) {
           capabilities.hasWebGPU = true;
           const limits = adapter.limits;

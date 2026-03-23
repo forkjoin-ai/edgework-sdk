@@ -320,19 +320,27 @@ export async function withRetry<T>(
   const timeoutMs = options?.timeoutMs ?? DEFAULT_SMOKE_MAX_WAIT_MS;
   const retryIntervalMs =
     options?.retryIntervalMs ?? DEFAULT_SMOKE_RETRY_INTERVAL_MS;
-  const startedAt = Date.now();
+  const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
 
-  while (Date.now() - startedAt <= timeoutMs) {
+  while (true) {
     try {
       return await run();
     } catch (error) {
       lastError = error;
-      if (Date.now() - startedAt > timeoutMs) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
         break;
       }
-      await new Promise((resolvePromise) => {
-        setTimeout(resolvePromise, retryIntervalMs);
+      const delayMs = Math.min(retryIntervalMs, remainingMs);
+      if (delayMs <= 1) {
+        await new Promise<void>((resolvePromise) => {
+          queueMicrotask(resolvePromise);
+        });
+        continue;
+      }
+      await new Promise<void>((resolvePromise) => {
+        setTimeout(resolvePromise, delayMs);
       });
     }
   }

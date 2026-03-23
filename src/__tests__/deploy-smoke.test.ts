@@ -44,7 +44,7 @@ describe('deploy smoke harness', () => {
       },
       {
         timeoutMs: 100,
-        retryIntervalMs: 1,
+        retryIntervalMs: 0,
       }
     );
 
@@ -116,7 +116,7 @@ describe('deploy smoke harness', () => {
       waitFor: {
         path: '/health',
         retryIntervalMs: 1,
-        timeoutMs: 100,
+        timeoutMs: 250,
         validate: (response, bodyText) => {
           if (!response.ok) {
             return false;

@@ -596,7 +596,7 @@ export interface SuperinferenceConfig {
   /** Minimum model agreement for interference mode */
   minAgreement?: number;
   /** Interference type */
-  interferenceType?: 'constructive' | 'destructive';
+  sliverType?: 'constructive' | 'destructive';
 
   // -- Measurement --
   /** Whether to collapse the wave function in measurement mode */
@@ -616,14 +616,14 @@ export interface SuperinferenceConfig {
   /** Convergence threshold */
   convergenceThreshold?: number;
   /** Interference threshold for search elimination */
-  interferenceThreshold?: number;
+  sliverThreshold?: number;
 }
 
 export type SuperinferenceMode =
   | 'superposition'
   | 'entanglement'
   | 'tunneling'
-  | 'interference'
+  | 'sliver'
   | 'measurement'
   | 'search';
 

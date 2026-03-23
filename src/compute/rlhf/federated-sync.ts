@@ -2,9 +2,22 @@
  * Federated Sync
  *
  * Privacy-preserving synchronization of adapter updates.
+ *
+ * Supports two modes:
+ *   1. Full gradient sync (default) -- clips, noises, and sends gradients
+ *   2. Statistical teleportation -- sends only the Bule deficit integer
+ *      when privacy conditions are met (gradientChannels < privateDataDimensions).
+ *      The deficit encodes the full entropy trajectory without revealing data.
  */
 
 import type { GradientEnvelope, Modality } from '../../types';
+import type { TeleportationDeficit, BuleyeanSpace, TeleportationFeasibility } from './statistical-teleportation';
+import {
+  computeDeficit,
+  buildTeleportationDeficit,
+  checkTeleportationFeasibility,
+  receiveTeleportation,
+} from './statistical-teleportation';
 
 export interface FederatedSyncConfig {
   hubUrl: string;
@@ -14,6 +27,10 @@ export interface FederatedSyncConfig {
   clipNorm?: number; // L2 clipping norm
   noiseMultiplier?: number; // Laplace noise multiplier
   minCohort?: number; // Minimum aggregation cohort
+  /** Enable statistical teleportation (deficit-only sync) */
+  enableTeleportation?: boolean;
+  /** Number of private data dimensions (features the device holds) */
+  privateDataDimensions?: number;
 }
 
 export interface GradientUpdate {
@@ -34,6 +51,17 @@ export class FederatedSync {
   private clipNorm: number;
   private noiseMultiplier: number;
   private minCohort: number;
+  private enableTeleportation: boolean;
+  private privateDataDimensions: number;
+  private teleportationRound = 0;
+
+  /**
+   * Buleyean space tracking for teleportation.
+   * choices = gradient dimensions (one "choice" per parameter).
+   * rejections = training rounds where the gradient was near-zero
+   *              (the void boundary grows with each uninformative update).
+   */
+  private buleyeanSpace: BuleyeanSpace = { choices: 2, rejections: 0 };
 
   constructor(config: FederatedSyncConfig) {
     this.hubUrl = config.hubUrl.replace(/\/$/, '');
@@ -43,6 +71,8 @@ export class FederatedSync {
     this.clipNorm = config.clipNorm ?? 1.0;
     this.noiseMultiplier = config.noiseMultiplier ?? 0.6;
     this.minCohort = config.minCohort ?? 128;
+    this.enableTeleportation = config.enableTeleportation ?? false;
+    this.privateDataDimensions = config.privateDataDimensions ?? 0;
   }
 
   /**
@@ -158,14 +188,131 @@ export class FederatedSync {
   }
 
   /**
-   * Full sync cycle: send local update, receive aggregated
+   * Full sync cycle: send local update, receive aggregated.
+   *
+   * When teleportation is enabled and feasible, sends only the Bule deficit
+   * instead of the full gradient buffer. The deficit alone encodes the
+   * certainty trajectory -- the receiver knows how certain this device is
+   * and when it will converge, without seeing the data.
    */
   async sync(localUpdate: GradientUpdate): Promise<ArrayBuffer | null> {
-    // Send our update
-    await this.sendUpdate(localUpdate);
+    this.teleportationRound++;
 
-    // Fetch aggregated update
+    // Check if teleportation mode is active and feasible
+    if (this.enableTeleportation) {
+      const gradientChannels = new Float32Array(localUpdate.gradients).length;
+      this.updateBuleyeanSpace(localUpdate.gradients, gradientChannels);
+
+      const feasibility = checkTeleportationFeasibility(
+        this.buleyeanSpace,
+        gradientChannels,
+        this.privateDataDimensions
+      );
+
+      if (feasibility.feasible) {
+        // Teleport: send deficit only (one integer, not the full buffer)
+        await this.sendTeleportationDeficit(localUpdate.modality);
+        return this.fetchAggregatedUpdate();
+      }
+    }
+
+    // Fall back to full gradient sync
+    await this.sendUpdate(localUpdate);
     return this.fetchAggregatedUpdate();
+  }
+
+  // ── Statistical Teleportation ────────────────────────────────
+
+  /**
+   * Update the Buleyean space from observed gradients.
+   * A gradient dimension counts as a "rejection" when its magnitude
+   * is below a threshold (near-zero = uninformative = rejected).
+   */
+  private updateBuleyeanSpace(
+    gradients: ArrayBuffer,
+    gradientChannels: number
+  ): void {
+    this.buleyeanSpace.choices = Math.max(2, gradientChannels);
+
+    // Count near-zero gradient dimensions as rejections
+    const data = new Float32Array(gradients);
+    let nearZeroCount = 0;
+    const threshold = 1e-6;
+    for (let i = 0; i < data.length; i++) {
+      if (Math.abs(data[i]) < threshold) {
+        nearZeroCount++;
+      }
+    }
+    // Rejections accumulate: void boundary only grows
+    this.buleyeanSpace.rejections = Math.min(
+      this.buleyeanSpace.rejections + nearZeroCount,
+      this.buleyeanSpace.choices - 1
+    );
+  }
+
+  /**
+   * Send only the Bule deficit to the hub.
+   * Replaces the full gradient payload -- one integer crosses the wire.
+   */
+  private async sendTeleportationDeficit(modality: Modality): Promise<void> {
+    const deficit = buildTeleportationDeficit(
+      this.buleyeanSpace,
+      this.modelId,
+      this.deviceId,
+      modality,
+      this.teleportationRound
+    );
+
+    const response = await fetch(`${this.hubUrl}/teleportation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Model-Id': this.modelId,
+        'X-Device-Id': this.deviceId,
+        'X-Min-Cohort': String(this.minCohort),
+        'X-Teleportation': 'true',
+        'X-Deficit': String(deficit.deficit),
+      },
+      body: JSON.stringify(deficit),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Teleportation failed: ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Check whether teleportation is currently feasible.
+   */
+  getTeleportationFeasibility(
+    gradientChannels: number
+  ): TeleportationFeasibility {
+    return checkTeleportationFeasibility(
+      this.buleyeanSpace,
+      gradientChannels,
+      this.privateDataDimensions
+    );
+  }
+
+  /**
+   * Get the current Bule deficit for this device.
+   */
+  getCurrentDeficit(): number {
+    return computeDeficit(this.buleyeanSpace);
+  }
+
+  /**
+   * Get the current Buleyean space state (for diagnostics).
+   */
+  getBuleyeanSpace(): BuleyeanSpace {
+    return { ...this.buleyeanSpace };
+  }
+
+  /**
+   * Get the current teleportation round.
+   */
+  getTeleportationRound(): number {
+    return this.teleportationRound;
   }
 }
 

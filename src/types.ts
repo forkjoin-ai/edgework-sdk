@@ -137,6 +137,16 @@ export interface EdgeworkOptions {
 
   /** Inference backend preference */
   inferenceBackend?: 'webgpu' | 'webnn' | 'wasm' | 'cpu';
+
+  /**
+   * Enable statistical teleportation for federated sync.
+   * When enabled, sends only the Bule deficit (one integer) instead of
+   * full gradient buffers when privacy conditions are met.
+   */
+  enableTeleportation?: boolean;
+
+  /** Number of private data dimensions (features that must stay on-device) */
+  privateDataDimensions?: number;
 }
 
 /**
@@ -285,6 +295,23 @@ export interface GradientEnvelope {
   dpNoiseSeedId: string;
   deviceProof: string;
   createdAt: string;
+}
+
+/**
+ * Statistical teleportation status reported by a mesh node.
+ * The deficit alone encodes the full entropy trajectory.
+ */
+export interface TeleportationStatus {
+  /** Current Bule deficit (certainty level) */
+  deficit: number;
+  /** Round at which convergence will occur */
+  convergenceRound: number;
+  /** Current teleportation round */
+  currentRound: number;
+  /** Whether teleportation mode is active */
+  active: boolean;
+  /** Bandwidth savings ratio when active (0 to 1) */
+  bandwidthSavings: number;
 }
 
 /**

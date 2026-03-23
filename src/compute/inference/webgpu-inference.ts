@@ -8,10 +8,35 @@ import { BaseInference } from './base-inference';
 import type { InferenceBackend, LayerWeights } from '../../types';
 import type { BaseStorage } from '../../data/storage/base-storage';
 
+type WebGpuDevice = unknown;
+
+interface WebGpuAdapter {
+  requestDevice(options: {
+    requiredLimits: {
+      maxBufferSize: number;
+      maxStorageBufferBindingSize: number;
+    };
+  }): Promise<WebGpuDevice>;
+}
+
+type NavigatorWithWebGpu = {
+  gpu?: {
+    requestAdapter(options?: {
+      powerPreference?: 'high-performance' | 'low-power';
+    }): Promise<WebGpuAdapter | null>;
+  };
+};
+
+function getWebGpu(): NavigatorWithWebGpu['gpu'] {
+  return typeof navigator === 'undefined'
+    ? undefined
+    : (navigator as NavigatorWithWebGpu).gpu;
+}
+
 export class WebGPUInference extends BaseInference {
   readonly backend: InferenceBackend = 'webgpu';
 
-  private device: GPUDevice | null = null;
+  private device: WebGpuDevice | null = null;
   private embeddings: Float32Array | null = null;
   private lmHead: Float32Array | null = null;
   private outputNorm: Float32Array | null = null;
@@ -32,11 +57,12 @@ export class WebGPUInference extends BaseInference {
    * Initialize WebGPU device and resources
    */
   protected async initializeBackend(): Promise<void> {
-    if (!navigator.gpu) {
+    const gpu = getWebGpu();
+    if (!gpu) {
       throw new Error('WebGPU is not supported in this browser');
     }
 
-    const adapter = await navigator.gpu.requestAdapter({
+    const adapter = await gpu.requestAdapter({
       powerPreference: 'high-performance',
     });
     if (!adapter) {
