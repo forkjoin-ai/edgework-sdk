@@ -98,6 +98,11 @@ export type { SyncOptions } from './data/sync';
 
 export { RewardModel, RLHFTrainer, FederatedSync } from './compute/rlhf';
 
+// Buleyean RL -- on-device rejection-based training (God Formula)
+export { BuleyeanTrainer } from './compute/buleyean';
+export type { BuleyeanTrainerConfig } from './compute/buleyean';
+export * as Buleyean from './compute/buleyean';
+
 export * as Auth from './auth';
 
 // Export Gateway Client
@@ -124,6 +129,7 @@ import { createStorage as createStorageInternal } from './data/storage/factory';
 import { createInferenceEngine as createInferenceEngineInternal } from './compute/inference/factory';
 import { createModelSync as createModelSyncInternal } from './data/sync/factory';
 import { RLHFTrainer as RLHFTrainerInternal } from './compute/rlhf/trainer';
+import { BuleyeanTrainer as BuleyeanTrainerInternal } from './compute/buleyean/trainer';
 import { FederatedSync } from './compute/rlhf/federated-sync';
 import {
   getModelConfig as getModelConfigInternal,
@@ -162,6 +168,7 @@ export class Edgework {
   private inference: BaseInference | null = null;
   private sync: ModelSyncType | null = null;
   private rlhfTrainer: RLHFTrainerInternal | null = null;
+  private buleyeanTrainer: BuleyeanTrainerInternal | null = null;
   private modalityTrainers = new Map<Modality, RLHFTrainerInternal>();
   private pendingSignals = new Map<Modality, ModalityTrainingSignal[]>();
   private communityParticipation = false;
@@ -276,6 +283,42 @@ export class Edgework {
       }
     }
 
+    // Initialize Buleyean RL if enabled (rejection-based, no reward model)
+    if (validated.enableBuleyean && !validated.enableRLHF) {
+      const config = getModelConfigInternal(validated.model);
+      if (config) {
+        const deviceId = validated.userId ?? edgework.generateDeviceId();
+
+        const buleyeanTrainer = new BuleyeanTrainerInternal({
+          storage,
+          modelId: validated.model,
+          userId: deviceId,
+          vocabSize: config.vocabSize,
+          modality: 'text',
+          batchSize: edgework.trainingBatchSize,
+          communityParticipation: edgework.communityParticipation,
+          privateDataDimensions: validated.privateDataDimensions,
+        });
+        await buleyeanTrainer.initialize();
+
+        // Wrap BuleyeanTrainer to match RLHFTrainer interface for the Edgework class
+        const wrappedTrainer = new RLHFTrainerInternal({
+          storage,
+          modelId: validated.model,
+          userId: deviceId,
+          hiddenDim: config.hiddenDim,
+          modality: 'text',
+          batchSize: edgework.trainingBatchSize,
+          communityParticipation: edgework.communityParticipation,
+        });
+        // Store the buleyean trainer on the instance for direct access
+        edgework.buleyeanTrainer = buleyeanTrainer;
+        edgework.rlhfTrainer = wrappedTrainer;
+        await wrappedTrainer.initialize();
+        edgework.modalityTrainers.set('text', wrappedTrainer);
+      }
+    }
+
     edgework.bindSessionFlushHooks();
     return edgework;
   }
@@ -361,24 +404,32 @@ export class Edgework {
   }
 
   /**
-   * Provide feedback for RLHF (thumbs up/down)
+   * Provide feedback for RLHF (thumbs up/down).
+   * Routes through BuleyeanTrainer when Buleyean mode is active.
    */
   async feedback(
     messageHash: string,
     rating: 'positive' | 'negative'
   ): Promise<void> {
+    const hiddenState = this.inference?.getLastHiddenState();
+    const feedbackValue = rating === 'positive' ? 1.0 : -1.0;
+    const feedbackObj: RLHFFeedback = {
+      messageHash,
+      feedback: feedbackValue,
+      hiddenState: hiddenState ?? undefined,
+    };
+
+    // Route through Buleyean trainer if active
+    if (this.buleyeanTrainer) {
+      await this.buleyeanTrainer.recordFeedback(feedbackObj);
+      return;
+    }
+
     if (!this.rlhfTrainer) {
       throw new Error('RLHF not enabled');
     }
 
-    const hiddenState = this.inference?.getLastHiddenState();
-    const feedback: RLHFFeedback = {
-      messageHash,
-      feedback: rating === 'positive' ? 1.0 : -1.0,
-      hiddenState: hiddenState ?? undefined,
-    };
-
-    await this.rlhfTrainer.recordFeedback(feedback);
+    await this.rlhfTrainer.recordFeedback(feedbackObj);
   }
 
   /**
@@ -591,6 +642,14 @@ export class Edgework {
    */
   get rlhfStats(): { examples: number; lastTrained?: string } | null {
     return this.rlhfTrainer?.getStats() ?? null;
+  }
+
+  /**
+   * Access the Buleyean trainer for rejection-based RL.
+   * Available when initialized with enableBuleyean: true.
+   */
+  get buleyean(): BuleyeanTrainerInternal | null {
+    return this.buleyeanTrainer;
   }
 
   /**

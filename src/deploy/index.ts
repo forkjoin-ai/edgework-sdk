@@ -6,7 +6,15 @@
  *   const result = await deploy({ appDir: './my-site', name: 'halos-agency', ... });
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve as resolvePath } from 'node:path';
 import type {
   AeonConfig,
@@ -183,7 +191,7 @@ function resolveContainerApiBase(endpointBaseUrl: string): string {
       const parsed = new URL(trimmed);
       if (
         parsed.hostname.endsWith('halo.place') ||
-        parsed.hostname.endsWith('aeonflux.dev')
+        parsed.hostname.endsWith('forkjoin.org')
       ) {
         return `${trimmed}/api/container`;
       }
@@ -1243,6 +1251,11 @@ export interface RegisterAeonPidResult {
   state: string;
 }
 
+interface RegistrationApp {
+  appDir: string;
+  cleanup: () => void;
+}
+
 function processNameForEnv(
   app: string,
   env: 'dev' | 'staging' | 'production'
@@ -1282,14 +1295,17 @@ function registerReadPackageVersion(appDir: string): string {
   return packageJson.version || '0.0.0';
 }
 
-function ensureDistEnvelope(
+function createRegistrationApp(
   appDir: string,
   appName: string,
   processName: string,
   env: 'dev' | 'staging' | 'production',
   siteHost: string
-): void {
-  const distDir = join(appDir, 'dist');
+): RegistrationApp {
+  const stagingDir = mkdtempSync(
+    join(tmpdir(), `edgework-sdk-register-${appName}-${env}-`)
+  );
+  const distDir = join(stagingDir, 'dist');
   mkdirSync(distDir, { recursive: true });
 
   const version = registerReadPackageVersion(appDir);
@@ -1314,7 +1330,7 @@ function ensureDistEnvelope(
   };
 
   writeFileSync(
-    join(distDir, 'manifest.json'),
+    join(stagingDir, 'manifest.json'),
     JSON.stringify(manifest, null, 2)
   );
 
@@ -1337,6 +1353,13 @@ function ensureDistEnvelope(
 `;
 
   writeFileSync(join(distDir, 'index.html'), indexHtml);
+
+  return {
+    appDir: stagingDir,
+    cleanup: () => {
+      rmSync(stagingDir, { recursive: true, force: true });
+    },
+  };
 }
 
 function registerSleepMs(ms: number): Promise<void> {
@@ -1391,8 +1414,13 @@ export async function registerAeonPid(
     );
   }
 
-  // Create minimal dist envelope
-  ensureDistEnvelope(appDir, config.appName, processName, env, siteHost);
+  const registrationApp = createRegistrationApp(
+    appDir,
+    config.appName,
+    processName,
+    env,
+    siteHost
+  );
 
   console.log(`Registering AeonPID: ${processName}`);
   console.log(`  app:       ${config.appName}`);
@@ -1400,76 +1428,80 @@ export async function registerAeonPid(
   console.log(`  host:      ${siteHost}`);
   console.log(`  gateway:   ${gatewayUrl}`);
   console.log(`  owner DID: ${ownerDid}`);
-  console.log(`  app dir:   ${appDir}`);
-
-  if (config.dryRun) {
-    console.log('Dry run enabled. Skipping deploy call.');
-    return { cid: 'dry-run', processName, siteHost, state: 'dry-run' };
-  }
-
-  let cid: string;
+  console.log(`  app dir:   ${registrationApp.appDir}`);
 
   try {
-    const result = await deploy({
-      appDir,
-      name: processName,
-      gatewayUrl,
-      ownerDid,
-      apiKey,
-      tier: 'edge',
-      build: { skipBuild: true },
-    });
-
-    cid = result.cid;
-    console.log('AeonPID registration complete.');
-    console.log(`  cid:     ${result.cid}`);
-    console.log(`  url:     ${result.url}`);
-    console.log(`  r2 key:  ${result.r2Key}`);
-    console.log(`  updated: ${result.updated}`);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    const payloadTooLarge =
-      message.includes('Deploy API error (413)') ||
-      message.toLowerCase().includes('payload too large') ||
-      message.toLowerCase().includes('socket connection was closed') ||
-      message.toLowerCase().includes('fetch failed');
-
-    if (!payloadTooLarge) {
-      throw error;
+    if (config.dryRun) {
+      console.log('Dry run enabled. Skipping deploy call.');
+      return { cid: 'dry-run', processName, siteHost, state: 'dry-run' };
     }
 
-    console.warn(
-      `AeonPID upload too large for ${processName}; checking existing process...`
-    );
+    let cid: string;
 
-    const processes = await list({ gatewayUrl, apiKey });
-    const existing = processes.processes.find((p) => p.name === processName);
+    try {
+      const result = await deploy({
+        appDir: registrationApp.appDir,
+        name: processName,
+        gatewayUrl,
+        ownerDid,
+        apiKey,
+        tier: 'edge',
+        build: { skipBuild: true },
+      });
 
-    if (!existing) {
-      throw error;
+      cid = result.cid;
+      console.log('AeonPID registration complete.');
+      console.log(`  cid:     ${result.cid}`);
+      console.log(`  url:     ${result.url}`);
+      console.log(`  r2 key:  ${result.r2Key}`);
+      console.log(`  updated: ${result.updated}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      const payloadTooLarge =
+        message.includes('Deploy API error (413)') ||
+        message.toLowerCase().includes('payload too large') ||
+        message.toLowerCase().includes('socket connection was closed') ||
+        message.toLowerCase().includes('fetch failed');
+
+      if (!payloadTooLarge) {
+        throw error;
+      }
+
+      console.warn(
+        `AeonPID upload too large for ${processName}; checking existing process...`
+      );
+
+      const processes = await list({ gatewayUrl, apiKey });
+      const existing = processes.processes.find((p) => p.name === processName);
+
+      if (!existing) {
+        throw error;
+      }
+
+      console.warn(`Reusing existing AeonPID ${processName} (${existing.cid})`);
+      cid = existing.cid;
     }
 
-    console.warn(`Reusing existing AeonPID ${processName} (${existing.cid})`);
-    cid = existing.cid;
+    // Poll for non-spawn state
+    let state = 'spawn';
+    let latest = await getStatus(cid, { gatewayUrl, apiKey });
+    state = latest.state;
+
+    if (state === 'spawn') {
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        await registerSleepMs(1000);
+        latest = await getStatus(cid, { gatewayUrl, apiKey });
+        state = latest.state;
+        if (state !== 'spawn') break;
+      }
+    }
+
+    console.log('Gateway status:');
+    console.log(`  state: ${state}`);
+    console.log(`  tier:  ${latest.tier}`);
+
+    return { cid, processName, siteHost, state };
+  } finally {
+    registrationApp.cleanup();
   }
-
-  // Poll for non-spawn state
-  let state = 'spawn';
-  let latest = await getStatus(cid, { gatewayUrl, apiKey });
-  state = latest.state;
-
-  if (state === 'spawn') {
-    for (let attempt = 1; attempt <= 5; attempt += 1) {
-      await registerSleepMs(1000);
-      latest = await getStatus(cid, { gatewayUrl, apiKey });
-      state = latest.state;
-      if (state !== 'spawn') break;
-    }
-  }
-
-  console.log('Gateway status:');
-  console.log(`  state: ${state}`);
-  console.log(`  tier:  ${latest.tier}`);
-
-  return { cid, processName, siteHost, state };
 }

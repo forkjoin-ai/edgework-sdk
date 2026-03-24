@@ -114,6 +114,13 @@ export interface EdgeworkOptions {
   /** Enable on-device RLHF */
   enableRLHF?: boolean;
 
+  /**
+   * Enable Buleyean RL (rejection-based training, no reward model).
+   * When true, uses the God Formula w_i = R - min(v_i, R) + 1
+   * instead of the reward model approach. Mutually exclusive with enableRLHF.
+   */
+  enableBuleyean?: boolean;
+
   /** Enable community aggregation sync (opt-in) */
   communityParticipation?: boolean;
 

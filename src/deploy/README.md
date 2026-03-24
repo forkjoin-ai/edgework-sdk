@@ -4,6 +4,10 @@ Parent: [Edgework SDK Core](../README.md)
 
 Shared deploy helpers for publish orchestration, smoke verification, and route-quality checks.
 
+`registerAeonPid(...)` stages a temporary minimal registration app instead of
+mutating an app's real `dist/` tree, so large client bundles do not leak into
+AeonPID control-plane uploads.
+
 ## Files
 
 - [`index.ts`](./index.ts): Public deploy helper exports.

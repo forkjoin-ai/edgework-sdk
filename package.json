@@ -126,6 +126,11 @@
       "import": "./dist/deploy/index.mjs",
       "require": "./dist/deploy/index.js"
     },
+    "./buleyean": {
+      "types": "./dist/compute/buleyean/index.d.ts",
+      "import": "./dist/compute/buleyean/index.mjs",
+      "require": "./dist/compute/buleyean/index.js"
+    },
     "./esi-pool": {
       "types": "./dist/esi-pool/index.d.ts",
       "import": "./dist/esi-pool/index.mjs",

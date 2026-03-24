@@ -12,6 +12,7 @@ The `src` directory contains the source code for the `@affectively/edgework-sdk`
 - **Model Synchronization**: Logic to download and cache model weights.
 - **RLHF Training**: On-device Reinforcement Learning from Human Feedback.
 - **Agent Runtime**: EADK agent core with Gnosis-style topology runtime for client orchestration and fetch compatibility.
+- **Deploy Registration**: AeonPID helpers stage temporary minimal envelopes so control-plane registration does not inherit full built client payloads.
 
 ## Key Files
 
@@ -41,7 +42,7 @@ const sdk = await Edgework.init({
 const result = await sdk.generate('Hello world');
 ```
 
-Last Updated: 2026-01-31
+Last Updated: 2026-03-23
 
 ## Sub-Directories
 

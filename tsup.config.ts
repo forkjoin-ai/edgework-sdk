@@ -11,6 +11,7 @@ export default defineConfig({
     'compute/distributed/index': 'src/compute/distributed/index.ts',
     'compute/inference/index': 'src/compute/inference/index.ts',
     'compute/rlhf/index': 'src/compute/rlhf/index.ts',
+    'compute/buleyean/index': 'src/compute/buleyean/index.ts',
     'react/index': 'src/react/index.ts',
     'auth/index': 'src/auth/index.ts',
     'deploy/index': 'src/deploy/index.ts',

@@ -15,6 +15,7 @@ npm install @affectively/edgework-sdk
 - **RLHF**  --  Collect feedback to improve models over time
 - **React**  --  Ready-to-use components for feedback UI
 - **Agent Runtime**  --  Gnosis-style topology runtime for agent/client orchestration
+- **Deploy Registration**  --  AeonPID helpers stage minimal temporary envelopes so control-plane registration stays small and does not reuse full client build output
 
 ## Quick Start
 
@@ -86,7 +87,7 @@ Apache-2.0
 
 Made with care by the AFFECTIVELY team.
 
-Last Updated: 2026-01-31
+Last Updated: 2026-03-23
 
 ## Sub-Directories
 
