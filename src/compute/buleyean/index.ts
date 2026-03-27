@@ -117,3 +117,18 @@ export {
 // On-device Trainer
 export { BuleyeanTrainer } from './trainer';
 export type { BuleyeanTrainerConfig } from './trainer';
+
+// Twin bundle materialization
+export type {
+  TwinBundleLike,
+  TwinBundleTrainerState,
+  TwinBundleAdapterSnapshot,
+  TwinBundleMaterializationOptions,
+  TwinBundleWritePlan,
+} from './twin-bundle';
+export {
+  TwinBundleLikeSchema,
+  materializeTwinBundleTrainerState,
+  materializeTwinBundleAdapter,
+  buildTwinBundleWritePlan,
+} from './twin-bundle';
