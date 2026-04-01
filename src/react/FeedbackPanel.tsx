@@ -63,7 +63,7 @@ export function FeedbackPanel({
   onClose,
   showPreview = true,
   className = '',
-}: FeedbackPanelProps): React.ReactElement {
+}: FeedbackPanelProps): React.ReactNode {
   const [rating, setRating] = useState<'positive' | 'negative' | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<
     Set<FeedbackCategory>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { Command } from 'commander';
+import { Command } from '@a0n/cli-kernel';
 
 import ora from '@emotions-app/shared-utils/cli/spinner';
 import { spawnSync } from 'node:child_process';

@@ -7,11 +7,11 @@
  */
 
 import { parseUnits, formatUnits } from 'viem';
-import type { AgentWebsiteTokenBurn } from '@emotions-app/shared-ui/types/agent-website';
+import type { AgentWebsiteTokenBurn } from '../types/agent-website';
 import {
   calculateRenewalCost,
   MAX_RENEWAL_COUNT,
-} from '@emotions-app/shared-ui/types/agent-website';
+} from '../types/agent-website';
 
 interface AffectTokenLogger {
   debug: (msg: string, data?: unknown) => void;

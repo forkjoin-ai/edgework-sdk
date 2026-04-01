@@ -37,7 +37,7 @@ export function FeedbackButton({
   size = 'md',
   disabled = false,
   className = '',
-}: FeedbackButtonProps): React.ReactElement {
+}: FeedbackButtonProps): React.ReactNode {
   const [localFeedback, setLocalFeedback] = useState<
     'positive' | 'negative' | null
   >(null);

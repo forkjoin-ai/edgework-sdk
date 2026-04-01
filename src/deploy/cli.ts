@@ -8,7 +8,7 @@
  *   edgework shift <source> <dir> (alias for deploy clone)
  */
 
-import { Command } from 'commander';
+import { Command } from '@a0n/cli-kernel';
 import {
   cloneDeploymentToDirectory,
   deploy,

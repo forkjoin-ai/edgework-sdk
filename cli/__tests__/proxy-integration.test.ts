@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const PROXY_PORT = 11425; // Use a distinct port for integration testing
 const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}`;
-const STARTUP_TIMEOUT_MS = 10_000;
+const STARTUP_TIMEOUT_MS = 4_000;
 const STARTUP_POLL_MS = 200;
 
 describe('Proxy Integration Tests', () => {

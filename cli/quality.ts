@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { Command } from 'commander';
+import { Command } from '@a0n/cli-kernel';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 

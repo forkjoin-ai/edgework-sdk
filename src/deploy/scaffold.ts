@@ -1036,7 +1036,6 @@ function buildMcpServerScaffoldFiles(
     dependencies: {
       '@a0n/edgework-sdk': 'workspace:*',
       '@affectively/mcp-framework': 'workspace:*',
-      '@modelcontextprotocol/sdk': '^1.4.1',
       zod: '^3.23.0',
     },
     devDependencies: {
@@ -1059,12 +1058,12 @@ function buildMcpServerScaffoldFiles(
     include: ['src/**/*'],
   };
 
-  const indexTs = `import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+  const indexTs = `import { Server } from '@affectively/mcp-framework/server';
+import { StdioServerTransport } from '@affectively/mcp-framework/transport';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+} from '@affectively/mcp-framework/types';
 
 const server = new Server(
   {

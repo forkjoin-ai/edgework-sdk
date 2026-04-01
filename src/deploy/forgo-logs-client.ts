@@ -11,7 +11,7 @@ import type {
   ForgoRollup,
   ForgoArchiveManifest,
   ForgoQuotaStatus,
-} from '@emotions-app/shared-utils/edge/forgo-logs-types';
+} from '../types/forgo-logs-types';
 import {
   GnosisClientRuntime,
   type GnosisTraceEvent,

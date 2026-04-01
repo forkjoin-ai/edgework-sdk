@@ -5,7 +5,7 @@
  * Supports both text-to-SQL and SQL-to-text transformations with statistical analysis
  */
 
-import { Command } from 'commander';
+import { Command } from '@a0n/cli-kernel';
 
 import ora from '@emotions-app/shared-utils/cli/spinner';
 import { readFileSync } from 'fs';

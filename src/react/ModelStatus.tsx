@@ -57,7 +57,7 @@ export function ModelStatus({
   error,
   compact = false,
   className = '',
-}: ModelStatusProps): React.ReactElement {
+}: ModelStatusProps): React.ReactNode {
   // Determine status
   const isDownloading =
     downloadProgress !== undefined && downloadProgress < 100;

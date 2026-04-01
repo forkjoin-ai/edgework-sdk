@@ -1,6 +1,6 @@
-import { defineConfig } from 'tsup';
+import { definePackageBuildConfig } from '@a0n/a0/package-build';
 
-export default defineConfig({
+export default definePackageBuildConfig({
   tsconfig: 'tsconfig.build.json',
   entry: {
     index: 'src/index.ts',

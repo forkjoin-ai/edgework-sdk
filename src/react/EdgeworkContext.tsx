@@ -68,7 +68,7 @@ export function EdgeworkProvider({
   storageBackend = 'opfs',
   enableRLHF = true,
   userId,
-}: EdgeworkProviderProps): React.ReactElement {
+}: EdgeworkProviderProps): React.ReactNode {
   const [sdk, setSdk] = useState<Edgework | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isReady, setIsReady] = useState(false);
