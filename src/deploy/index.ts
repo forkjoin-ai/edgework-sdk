@@ -160,6 +160,7 @@ export {
   cloneDeploymentToDirectory,
   detectFeatureKey,
   loadAeonConfigFromFile,
+  registerAeonPid,
   resolveAeonConfig,
   scaffoldAeonFoundation,
   scaffoldMcpServer,
@@ -1374,7 +1375,7 @@ function registerSleepMs(ms: number): Promise<void> {
  * This is the canonical programmatic entry point — CLI commands and scripts
  * are thin wrappers around this function.
  */
-export async function registerAeonPid(
+async function registerAeonPid(
   config: RegisterAeonPidConfig
 ): Promise<RegisterAeonPidResult> {
   const env = config.env || 'production';

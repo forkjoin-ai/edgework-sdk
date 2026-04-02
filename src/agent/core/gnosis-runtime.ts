@@ -5,6 +5,8 @@
  * PROCESS, FORK, RACE, FOLD, and VENT.
  */
 
+import { XGnosisEdgeVM } from '../../../../../open-source/gnosis/src/x-gnosis-vm.js';
+
 export type GnosisPrimitive = 'PROCESS' | 'FORK' | 'RACE' | 'FOLD' | 'VENT';
 
 export interface GnosisTraceEvent {
@@ -16,6 +18,10 @@ export interface GnosisTraceEvent {
 
 export interface GnosisRuntimeOptions {
   now?: () => number;
+  /** Mathematical execution budget bound (Pleroma R limit) */
+  budgetR?: number;
+  /** Internal starting stress equivalent (Initial v) */
+  initialV?: number;
 }
 
 export interface GnosisRaceBranch<T> {
@@ -46,10 +52,14 @@ export class GnosisClientRuntime {
   private readonly trace: GnosisTraceEvent[] = [];
   private readonly now: () => number;
   private readonly topologyName: string;
+  private readonly vm: XGnosisEdgeVM;
 
   constructor(topologyName: string, options?: GnosisRuntimeOptions) {
     this.topologyName = topologyName;
     this.now = options?.now ?? (() => Date.now());
+    
+    // Default deployment capacity is heavily bounded unless explicitly relaxed.
+    this.vm = new XGnosisEdgeVM(options?.budgetR ?? 50000, options?.initialV ?? 0);
   }
 
   getTopologyName(): string {
@@ -254,6 +264,17 @@ export class GnosisClientRuntime {
     node: string,
     metadata?: Record<string, unknown>
   ): void {
+    // Topologically evaluate the physical iteration limits before recording.
+    // If the edge execution overflows mathematical reality, it naturally traps to HALT.
+    try {
+      this.vm.processFrame({
+         streamId: 0, sequence: this.trace.length, flags: 0,
+         payload: new Uint8Array(1) // Minimum structural byte equivalent per operation
+      });
+    } catch (e) {
+      throw new Error(`[${this.topologyName}] THERMODYNAMIC HALT: Client execution runtime exhausted physical computational budget at node ${node}`);
+    }
+
     this.trace.push({
       primitive,
       node,
